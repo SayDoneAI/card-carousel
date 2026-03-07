@@ -1,0 +1,4 @@
+manim
+edge-tts
+pyyaml
+python-dotenv

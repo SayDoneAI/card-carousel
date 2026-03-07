@@ -1,0 +1,13 @@
+.cache/
+media/
+__pycache__/
+*.pyc
+.env
+output/
+
+# 临时文件
+*.mp4
+*.mp3
+*.png
+_analysis/
+*.wav
