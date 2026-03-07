@@ -1,39 +1,100 @@
 # Card Carousel — 图文卡片口播视频生成管线
 
 ## 项目概述
-还原 @深度进化Theo 风格的竖屏图文卡片口播视频。通过 Manim 渲染 + AI 生图 + TTS 配音，一键生成成品视频。
+可扩展模板系统的竖屏图文卡片口播视频生成器。通过 Manim 渲染 + AI 生图 + TTS 配音，一键生成成品视频。
 
 ## 技术栈
 - **渲染引擎**: Manim Community v0.20+ (竖屏 1080x1440, 3:4)
 - **TTS**: 火山引擎 TTS (主) / Edge TTS (备)
-- **AI 生图**: doubao-seedream-5-0 (通过 tools/image_gen.py)
+- **AI 生图**: Gemini (主) / Doubao (备) — 通过 tools/image_gen.py
 - **视频处理**: FFmpeg
 - **配置格式**: YAML
 
-## 核心文件
-| 文件 | 职责 |
-|------|------|
-| pipeline.py | 管线编排（tts → illustrations → render → voice → concat） |
-| explainer.py | Manim 场景渲染脚本（竖屏卡片布局） |
-| config.yaml | 视频配置（品牌、场景、旁白、插画关键词） |
-| tools/image_gen.py | AI 图片生成工具（外部依赖） |
+## 项目结构
+```
+card-carousel/
+├── pipeline.py              # CLI 入口（argparse → load_config → run_pipeline）
+├── config.yaml              # 旧模式配置（无 template 字段）
+├── explainer.py             # 向后兼容 shim → templates/minimal_insight/scene.py
+├── core/
+│   ├── config.py            # 配置加载 + .env + 模板合并 + 路径派生
+│   ├── orchestrator.py      # 管线编排（5 步: tts → illustrations → render → voice → concat）
+│   └── utils.py             # 工具函数（get_duration, sanitize_filename）
+├── engines/
+│   ├── tts/                 # TTS 引擎 ABC + 工厂
+│   │   ├── __init__.py      # TTSEngine ABC, TTSResult, get_tts_engine()
+│   │   ├── volcengine.py    # 火山引擎 TTS
+│   │   └── edge.py          # Edge TTS
+│   └── image/               # 图片引擎 ABC + 工厂
+│       ├── __init__.py      # ImageEngine ABC, ImageResult, get_image_engine()
+│       ├── kling.py         # 可灵引擎（内置 async polling）
+│       └── tool_adapter.py  # 外部工具适配器（包装 tools/image_gen.py）
+├── templates/
+│   ├── __init__.py          # 模板 Registry + @register 装饰器
+│   ├── base.py              # BaseTemplate ABC
+│   └── minimal_insight/     # "极简洞见" 模板
+│       ├── __init__.py      # MinimalInsightTemplate 注册
+│       ├── scene.py         # Manim 场景渲染（参数化颜色/字体/布局）
+│       └── defaults.yaml    # 模板默认配置
+├── content/
+│   └── example.yaml         # 新模式配置示例（带 template 字段）
+└── tools/
+    └── image_gen.py         # AI 图片生成工具
+```
+
+## 两种配置模式
+
+### 旧模式（无 template 字段）
+```yaml
+title: "标题"
+manim_script: "explainer.py"
+scenes: [...]
+```
+
+### 模板模式（有 template 字段）
+```yaml
+template: minimal-insight
+title: "标题"
+scenes: [...]
+```
+模板的 `defaults.yaml` 自动合并，用户配置优先级更高。
 
 ## 快速使用
+```bash
 python pipeline.py config.yaml              # 全量执行
 python pipeline.py config.yaml --step tts   # 只跑 TTS
-python pipeline.py config.yaml --step render # 只渲染
+python pipeline.py config.yaml --step illustrations  # 只生成插画
+python pipeline.py config.yaml --step render # 只渲染 Manim
+python pipeline.py config.yaml --step voice  # 合并音频到视频
+python pipeline.py config.yaml --step concat # 拼接最终视频
+python pipeline.py config.yaml --speed 1.5  # 1.5 倍速
+```
 
 ## 环境变量 (.env)
-- VOLC_API_KEY — 火山引擎 TTS API Key
-- GEMINI_API_KEY — sucloud 中转 API Key（插画生成）
-- GEMINI_BASE_URL — sucloud 基础 URL
+- `VOLC_API_KEY` — 火山引擎 TTS API Key
+- `GEMINI_API_KEY` — sucloud 中转 API Key（插画生成）
+- `GEMINI_BASE_URL` — sucloud 基础 URL
 
-## 目录结构约定
-- media/ — Manim 输出、音频、配音视频（gitignored）
-- .cache/ — 插画缓存（gitignored）
-- assets/illustrations/ — Manim 引用的插画文件（从 cache 复制）
+## 环境变量（运行时注入，由 orchestrator 设置）
+- `CARD_CAROUSEL_PROJECT_DIR` — 项目根目录
+- `CARD_CAROUSEL_CONFIG_PATH` — 配置文件路径
+- `CARD_CAROUSEL_AUDIO_DIR` — 音频目录
+- `CARD_CAROUSEL_TIMING_FILE` — 时间线文件路径
+
+## 目录约定
+- `media/` — Manim 输出、音频、配音视频（gitignored）
+- `.cache/` — 插画缓存（gitignored）
+- `assets/illustrations/` — Manim 引用的插画文件（从 cache 复制）
+
+## 架构要点
+- **引擎模式**: ABC + dataclass Result + 工厂函数（白名单校验）
+- **模板系统**: BaseTemplate ABC + Registry 字典 + @register 装饰器
+- **配置合并**: deep merge（template.defaults < 用户 config）
+- **Fallback**: 主引擎失败自动切换备用引擎（Gemini → Doubao）
+- **路径兼容**: scene.py 回退到 `Path(__file__).parents[2]`，兼容直接 manim 调用
+- **Media 隔离**: 模板模式用模板名作 media 目录名，避免多模板冲突
 
 ## 编码规范
-- Python 文件使用 UTF-8 编码
-- 配置通过 config.yaml 集中管理，代码中不硬编码品牌/文案信息
-- 插画按关键词缓存，null 关键词表示复用上一张图
+- Python UTF-8，配置集中在 YAML，代码中不硬编码品牌/文案
+- 插画按关键词缓存，`null` 关键词表示复用上一张图
+- 引擎返回 Result 对象（不 sys.exit），orchestrator 统一处理错误
