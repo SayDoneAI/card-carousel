@@ -47,8 +47,9 @@ config.background_color = "#FFFFFF"  # 默认白色，Scene.construct 中会从 
 from pathlib import Path as _Path
 _DIR = os.environ.get("CARD_CAROUSEL_PROJECT_DIR", str(_Path(__file__).resolve().parents[2]))
 
-# 支持通过环境变量直接注入音频/timing路径（新模板模式），回退到模板对应的 media 目录
-_DEFAULT_MEDIA = os.path.join(_DIR, "media", "videos", "minimal_insight")
+# 支持通过环境变量直接注入音频/timing路径（新模板模式），回退到 Manim 默认目录
+# Manim 用脚本文件名 "scene" 作子目录名
+_DEFAULT_MEDIA = os.path.join(_DIR, "media", "videos", "scene")
 AUDIO_DIR = os.environ.get("CARD_CAROUSEL_AUDIO_DIR", os.path.join(_DEFAULT_MEDIA, "audio"))
 TIMING_FILE = os.environ.get("CARD_CAROUSEL_TIMING_FILE", os.path.join(_DEFAULT_MEDIA, "_timing.json"))
 ASSETS_DIR = os.path.join(_DIR, "assets", "illustrations")

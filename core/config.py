@@ -118,13 +118,10 @@ def load_config(path: str) -> dict:
     cfg.setdefault("illustrations", {})
 
     # 派生路径
-    # 模板模式用模板名作 media 目录名（避免多模板共用 scene.py 时目录冲突）
-    # 旧模式用脚本文件名（保持兼容）
-    if "template" in cfg:
-        media_key = cfg["template"].replace("-", "_")
-    else:
-        script_base = cfg["manim_script"].replace(".py", "").replace("/", os.sep)
-        media_key = os.path.basename(script_base)
+    # Manim 固定用脚本文件名（不含 .py）作 media 子目录名，
+    # 这里必须与 Manim 的行为保持一致，否则 voice 步骤找不到渲染产物
+    script_base = cfg["manim_script"].replace(".py", "").replace("/", os.sep)
+    media_key = os.path.basename(script_base)
     media_base = os.path.join(project_dir, "media", "videos", media_key)
     cfg["_media_base"] = media_base
     cfg["_audio_dir"] = os.path.join(media_base, "audio")
