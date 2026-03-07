@@ -165,7 +165,8 @@ def _concat_audios(audio_paths, output_path):
     """用 ffmpeg concat 拼接多个音频文件"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
         for p in audio_paths:
-            f.write(f"file '{os.path.abspath(p)}'\n")
+            escaped = os.path.abspath(p).replace("'", "'\\''")
+            f.write(f"file '{escaped}'\n")
         list_file = f.name
     try:
         subprocess.run([
@@ -268,7 +269,7 @@ def step_tts(cfg):
 
     voice = cfg["voice"]
     print("=" * 50)
-    print("Step: TTS 配音 (edge-tts)")
+    print(f"Step: TTS 配音 ({voice.get('provider', 'edge')})")
     print(f"  Voice: {voice.get('voice_type', 'unknown')}")
     print(f"  语速: {voice.get('speed', 1.0)}")
     print("=" * 50)
@@ -417,7 +418,7 @@ def step_illustrations(cfg):
     all_keywords = set()
     for scene in cfg["scenes"]:
         keywords = scene.get("illustration_keywords", [])
-        all_keywords.update(keywords)
+        all_keywords.update(k for k in keywords if k)
 
     generated = 0
     skipped = 0
@@ -447,21 +448,45 @@ def step_illustrations(cfg):
         try:
             if use_builtin_kling:
                 out_path = os.path.join(cache_dir, f"{safe_name}.png")
+                print(f"    引擎: kling ({model or 'kling-v1'})")
                 _generate_kling(
                     prompt, out_path,
                     model=model or "kling-v1",
                     aspect_ratio="1:1",
                 )
             else:
+                print(f"    引擎: {engine} ({model})")
                 ok = _generate_with_tool(prompt, cache_dir, safe_name, gen_tool, engine, model)
                 if not ok:
-                    print(f"    生成失败")
+                    raise RuntimeError("_generate_with_tool 返回 False")
+        except Exception as e:
+            # 主引擎失败，尝试 fallback
+            fallback_engine = illus_cfg.get("fallback_engine")
+            fallback_model = illus_cfg.get("fallback_model")
+            if fallback_engine:
+                print(f"    主引擎失败 ({e})，尝试 fallback ({fallback_engine})...")
+                try:
+                    if fallback_engine == "kling":
+                        out_path = os.path.join(cache_dir, f"{safe_name}.png")
+                        _generate_kling(
+                            prompt, out_path,
+                            model=fallback_model or "kling-v1",
+                            aspect_ratio="1:1",
+                        )
+                    else:
+                        ok = _generate_with_tool(prompt, cache_dir, safe_name, gen_tool, fallback_engine, fallback_model)
+                        if not ok:
+                            print(f"    fallback 生成失败")
+                            failed += 1
+                            continue
+                except Exception as fe:
+                    print(f"    fallback 生成失败: {fe}")
                     failed += 1
                     continue
-        except Exception as e:
-            print(f"    生成失败: {e}")
-            failed += 1
-            continue
+            else:
+                print(f"    生成失败: {e}")
+                failed += 1
+                continue
 
         # 检查生成结果
         found_path = None
@@ -717,6 +742,9 @@ def main():
 
     cfg = load_config(args.config)
     if args.speed is not None:
+        if args.speed <= 0 or args.speed > 100:
+            print(f"错误: --speed 必须在 0.1-100.0 之间，当前值: {args.speed}")
+            sys.exit(1)
         cfg["output"]["speed"] = args.speed
     run_pipeline(cfg, step=args.step)
 

@@ -15,8 +15,10 @@ output:
 # 插画配置
 illustrations:
   enabled: true
-  engine: doubao
-  model: doubao-seedream-5-0-260128
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
   style_prompt: "Minimalist line drawing illustration, black ink with red accents only, simple clean sketch on pure white background, no background elements, no border, no frame, no text, centered composition, the illustration should seamlessly blend into a white page"
   cache_dir: ".cache/illustrations"
   gen_tool: "tools/image_gen.py"
