@@ -1,0 +1,39 @@
+# 内容配置示例 — 使用 minimal-insight 模板
+title: "黄赋-认知进化01"
+template: minimal-insight
+
+# 覆盖模板品牌默认值
+brand:
+  logo_char: "赋"
+  author: "@黄赋"
+  topic: "在专业面前像学徒，在困难面前像王者"
+  pinyin: "HUANG FU"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  style_prompt: "Minimalist line drawing illustration, black ink with red accents only, simple clean sketch on pure white background, no background elements, no border, no frame, no text, centered composition, the illustration should seamlessly blend into a white page"
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+  format: mp4
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      真正阻碍一个人成长的从来不是能力不足
+      而是认知顺序的严重错位
+    illustration_keywords:
+      - growth obstacle
+      - null

@@ -1,0 +1,25 @@
+name: minimal-insight
+description: "极简洞见 — 竖屏白底大字卡片 + 水墨插画 + 底栏标签"
+
+layout:
+  font: "PingFang SC"
+  wrap_chars: 9
+  illustration_size: 4.0
+  colors:
+    bg: "#FFFFFF"
+    text: "#000000"
+    accent: "#C0392B"
+    pinyin: "#000000"
+    muted: "#999999"
+    bar_bg: "#DBDADB"
+    bar_text: "#1A1A1A"
+
+brand_defaults:
+  logo_char: "深"
+  author: "@深度进化Theo"
+  topic: ""
+  pinyin: "SHEN DU JIN HUA LUN"
+  disclaimer: "个人观点\n仅供参考"
+  footer_tags:
+    - "强者思维 ｜ 认知进化 ｜ 深度思考"
+    - "内核重构 ｜ 心智跃迁 ｜ 底层逻辑"

@@ -272,8 +272,15 @@ def step_render(cfg):
         os.path.join(project_dir, script),
     ] + scene_names
 
+    # 注入项目目录 + 配置路径，供模板 scene.py 读取
+    env = os.environ.copy()
+    env["CARD_CAROUSEL_PROJECT_DIR"] = project_dir
+    env["CARD_CAROUSEL_CONFIG_PATH"] = cfg["_config_path"]
+    env["CARD_CAROUSEL_AUDIO_DIR"] = cfg["_audio_dir"]
+    env["CARD_CAROUSEL_TIMING_FILE"] = cfg["_timing_file"]
+
     print(f"\n  执行: {' '.join(cmd)}\n")
-    result = subprocess.run(cmd, cwd=project_dir)
+    result = subprocess.run(cmd, cwd=project_dir, env=env)
     if result.returncode != 0:
         print("  渲染失败!")
         sys.exit(1)
