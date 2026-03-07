@@ -37,8 +37,8 @@ def main():
 
     cfg = load_config(args.config)
     if args.speed is not None:
-        if args.speed < 0.1 or args.speed > 100:
-            print(f"错误: --speed 必须在 0.1-100.0 之间，当前值: {args.speed}")
+        if args.speed < 0.5 or args.speed > 100:
+            print(f"错误: --speed 必须在 0.5-100.0 之间，当前值: {args.speed}")
             sys.exit(1)
         cfg["output"]["speed"] = args.speed
     run_pipeline(cfg, step=args.step)

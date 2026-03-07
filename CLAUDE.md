@@ -5,7 +5,7 @@
 
 ## 技术栈
 - **渲染引擎**: Manim Community v0.20+ (竖屏 1080x1440, 3:4)
-- **TTS**: 火山引擎 TTS (主) / Edge TTS (备)
+- **TTS**: 火山引擎 TTS
 - **AI 生图**: Gemini (主) / Doubao (备) — 通过 tools/image_gen.py
 - **视频处理**: FFmpeg
 - **配置格式**: YAML
@@ -23,11 +23,9 @@ card-carousel/
 ├── engines/
 │   ├── tts/                 # TTS 引擎 ABC + 工厂
 │   │   ├── __init__.py      # TTSEngine ABC, TTSResult, get_tts_engine()
-│   │   ├── volcengine.py    # 火山引擎 TTS
-│   │   └── edge.py          # Edge TTS
+│   │   └── volcengine.py    # 火山引擎 TTS
 │   └── image/               # 图片引擎 ABC + 工厂
 │       ├── __init__.py      # ImageEngine ABC, ImageResult, get_image_engine()
-│       ├── kling.py         # 可灵引擎（内置 async polling）
 │       └── tool_adapter.py  # 外部工具适配器（包装 tools/image_gen.py）
 ├── templates/
 │   ├── __init__.py          # 模板 Registry + @register 装饰器

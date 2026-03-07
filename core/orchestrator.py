@@ -41,6 +41,10 @@ def _tts_scene(cfg, scene, audio_dir):
     full_text = scene["narration"].strip()
     sentences = [s.strip() for s in full_text.split("\n") if s.strip()]
 
+    if not sentences:
+        print(f"\n  [{name}] 错误: narration 为空")
+        sys.exit(1)
+
     print(f"\n  [{name}] {len(sentences)} 句")
     t0 = time.time()
 
@@ -113,7 +117,7 @@ def step_tts(cfg):
 
     voice = cfg["voice"]
     print("=" * 50)
-    print(f"Step: TTS 配音 ({voice.get('provider', 'edge')})")
+    print(f"Step: TTS 配音 ({voice.get('provider', 'volcengine')})")
     print(f"  Voice: {voice.get('voice_type', 'unknown')}")
     print(f"  语速: {voice.get('speed', 1.0)}")
     print("=" * 50)
@@ -156,9 +160,15 @@ def step_illustrations(cfg):
     if gen_tool and not os.path.isabs(gen_tool):
         gen_tool = os.path.join(project_dir, gen_tool)
 
-    # kling 引擎内置支持，不需要外部工具
-    use_builtin_kling = engine_name == "kling"
-    if not use_builtin_kling and (not gen_tool or not os.path.exists(gen_tool)):
+    # 安全校验：gen_tool 必须在项目目录内
+    if gen_tool:
+        norm_tool = os.path.normpath(os.path.abspath(gen_tool))
+        norm_project = os.path.normpath(os.path.abspath(project_dir))
+        if not norm_tool.startswith(norm_project):
+            print(f"  错误: gen_tool 路径越界 ({gen_tool})")
+            return
+
+    if not gen_tool or not os.path.exists(gen_tool):
         print(f"  警告: 生图工具不存在 ({gen_tool})，跳过插画生成")
         return
 
@@ -384,6 +394,13 @@ def step_concat(cfg):
 
         final_name = _output_name(cfg, speed=speed)
         final_output = os.path.join(output_dir, final_name)
+
+        # 安全校验：输出文件必须在 output_dir 内
+        if not os.path.normpath(os.path.abspath(final_output)).startswith(
+            os.path.normpath(os.path.abspath(output_dir))
+        ):
+            print(f"\n  错误: 输出路径越界 ({final_output})")
+            sys.exit(1)
 
         if speed == 1.0:
             print(f"\n  拼接 → {final_name}")

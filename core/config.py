@@ -39,7 +39,7 @@ def _apply_template(cfg: dict, project_dir: str) -> dict:
     from templates import get_template
     template_name = cfg["template"]
     tmpl = get_template(template_name)
-    defaults = tmpl.get_default_config()
+    defaults = dict(tmpl.get_default_config())  # 深拷贝，避免修改模板原始对象
 
     # brand_defaults → brand（模板默认品牌）
     brand_defaults = defaults.pop("brand_defaults", {})
@@ -48,10 +48,11 @@ def _apply_template(cfg: dict, project_dir: str) -> dict:
     merged = _deep_merge(defaults, cfg)
 
     # brand: 用模板 brand_defaults 填充用户未设置的字段
-    if "brand" not in merged:
-        merged["brand"] = brand_defaults
+    user_brand = merged.get("brand")
+    if not isinstance(user_brand, dict):
+        merged["brand"] = dict(brand_defaults)
     else:
-        merged["brand"] = _deep_merge(brand_defaults, merged["brand"])
+        merged["brand"] = _deep_merge(brand_defaults, user_brand)
 
     # 自动设置 manim_script 指向模板 scene.py
     if "manim_script" not in cfg:
@@ -111,11 +112,17 @@ def load_config(path: str) -> dict:
     cfg["output"].setdefault("dir", os.getcwd())
 
     cfg.setdefault("voice", {})
-    cfg["voice"].setdefault("provider", "edge")
+    cfg["voice"].setdefault("provider", "volcengine")
     cfg["voice"].setdefault("voice_type", "zh-CN-YunxiNeural")
     cfg["voice"].setdefault("speed", 1.0)
 
     cfg.setdefault("illustrations", {})
+
+    # ── 路径安全校验 ──
+    # manim_script 必须在项目目录内
+    script_path = os.path.normpath(os.path.join(project_dir, cfg["manim_script"]))
+    if not script_path.startswith(os.path.normpath(project_dir)):
+        raise ValueError(f"manim_script 路径越界: {cfg['manim_script']!r}")
 
     # 派生路径
     # Manim 固定用脚本文件名（不含 .py）作 media 子目录名，

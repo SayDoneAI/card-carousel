@@ -10,6 +10,8 @@ REGISTRY: dict[str, type[BaseTemplate]] = {}
 def register(name: str):
     """类装饰器：将模板类注册到 REGISTRY"""
     def decorator(cls: type[BaseTemplate]):
+        if name in REGISTRY:
+            raise ValueError(f"模板名称冲突: {name!r} 已注册为 {REGISTRY[name]}")
         REGISTRY[name] = cls
         return cls
     return decorator
@@ -23,7 +25,5 @@ def get_template(name: str) -> BaseTemplate:
     return REGISTRY[name]()
 
 
-# ── 自动注册所有内置模板 ──
-from templates.minimal_insight import MinimalInsightTemplate  # noqa: E402
-
-REGISTRY["minimal-insight"] = MinimalInsightTemplate
+# ── 导入内置模板（触发 @register 自注册）──
+import templates.minimal_insight  # noqa: E402, F401

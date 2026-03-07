@@ -19,7 +19,7 @@ class TTSEngine(ABC):
 
 def get_tts_engine(voice_cfg: dict) -> TTSEngine:
     """工厂方法，根据 provider 返回对应引擎实例"""
-    provider = voice_cfg.get("provider", "edge")
+    provider = voice_cfg.get("provider", "volcengine")
 
     if provider == "volcengine":
         from .volcengine import VolcengineTTSEngine
@@ -28,11 +28,5 @@ def get_tts_engine(voice_cfg: dict) -> TTSEngine:
             cluster=voice_cfg.get("cluster", "volcano_tts"),
             speed_ratio=voice_cfg.get("speed", 1.0),
         )
-    elif provider == "edge":
-        from .edge import EdgeTTSEngine
-        return EdgeTTSEngine(
-            voice=voice_cfg.get("voice_type", "zh-CN-YunxiNeural"),
-            speed=voice_cfg.get("speed", 1.0),
-        )
     else:
-        raise ValueError(f"未知 TTS provider: {provider!r}，可用值: volcengine, edge")
+        raise ValueError(f"未知 TTS provider: {provider!r}，可用值: volcengine")

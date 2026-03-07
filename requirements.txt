@@ -1,8 +1,8 @@
 manim
-edge-tts
 pyyaml
 python-dotenv
 requests
 httpx
 Pillow
 numpy
+google-genai

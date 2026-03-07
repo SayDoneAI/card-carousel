@@ -6,8 +6,10 @@ import os
 import yaml
 
 from templates.base import BaseTemplate
+from templates import register
 
 
+@register("minimal-insight")
 class MinimalInsightTemplate(BaseTemplate):
     name = "minimal-insight"
 

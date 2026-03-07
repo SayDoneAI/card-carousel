@@ -24,9 +24,10 @@ def sanitize_filename(name):
 
 
 def _output_name(cfg, speed=1.0):
-    """生成输出文件名"""
+    """生成输出文件名（title 经过 sanitize 防止路径穿越）"""
     date_str = datetime.now().strftime("%Y%m%d")
-    base = f"{cfg['title']}_{date_str}"
+    safe_title = sanitize_filename(cfg["title"])
+    base = f"{safe_title}_{date_str}"
     if speed != 1.0:
         base += f"_{speed}x"
     return f"{base}.mp4"

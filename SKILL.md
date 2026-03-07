@@ -201,8 +201,8 @@ tts → illustrations → render → voice → concat
 pipeline.py (CLI entry)
   → core/config.py (load YAML + .env + template merge + path derivation)
   → core/orchestrator.py (5-step pipeline)
-      → engines/tts/ (ABC + factory: volcengine | edge)
-      → engines/image/ (ABC + factory: gemini | doubao | kling)
+      → engines/tts/ (ABC + factory: volcengine)
+      → engines/image/ (ABC + factory: gemini | doubao)
       → templates/ (registry + BaseTemplate ABC)
           → minimal_insight/scene.py (Manim rendering)
 ```
