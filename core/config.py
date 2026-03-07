@@ -106,7 +106,9 @@ def load_config(path: str) -> dict:
     cfg.setdefault("output", {})
     cfg["output"].setdefault("speed", 1.0)
     cfg["output"].setdefault("format", "mp4")
-    cfg["output"].setdefault("dir", project_dir)
+    # 输出目录默认为调用者的工作目录（而非项目目录），
+    # 这样作为 skill 使用时视频保存在用户当前目录
+    cfg["output"].setdefault("dir", os.getcwd())
 
     cfg.setdefault("voice", {})
     cfg["voice"].setdefault("provider", "edge")

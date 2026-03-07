@@ -122,8 +122,10 @@ python pipeline.py content/<config>.yaml --step concat         # 拼接最终视
 
 ### Step 3: Verify Output
 
+输出视频保存在**用户启动 Claude Code 的当前目录**（不是 skill 项目目录）。
+
 ```bash
-ffprobe -v quiet -show_format -show_streams $PROJECT/<title>_*.mp4 2>/dev/null | grep -E 'width|height|duration|size'
+ffprobe -v quiet -show_format -show_streams <title>_*.mp4 2>/dev/null | grep -E 'width|height|duration|size'
 ```
 
 ## Pipeline Steps
