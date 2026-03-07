@@ -77,13 +77,17 @@ def _load_timing(scene_name):
 
 
 def _load_config():
-    # 优先从环境变量读取配置路径（由 pipeline 注入）
-    # 回退到项目根目录的 config.yaml（兼容直接 manim 调用）
+    # 复用 core.config.load_config 确保模板合并逻辑一致
+    # （模板模式下 brand 等字段需要从 defaults.yaml 合并）
     project_root = str(_Path(__file__).resolve().parents[2])
     default_config = os.path.join(project_root, "config.yaml")
     config_path = os.environ.get("CARD_CAROUSEL_CONFIG_PATH", default_config)
-    with open(config_path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+
+    # 确保项目根在 sys.path，使 core 包可导入
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    from core.config import load_config
+    return load_config(config_path)
 
 
 def _get_colors(cfg):
