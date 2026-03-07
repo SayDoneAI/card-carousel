@@ -3,7 +3,7 @@ TTS 引擎抽象接口 + 工厂方法
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
