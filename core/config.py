@@ -117,6 +117,35 @@ def load_config(path: str) -> dict:
     cfg["voice"].setdefault("speed", 1.0)
 
     cfg.setdefault("illustrations", {})
+    layout_cfg = cfg.get("layout")
+    if layout_cfg is not None:
+        wrap_chars = layout_cfg.get("wrap_chars")
+        if not (
+            isinstance(wrap_chars, int)
+            and not isinstance(wrap_chars, bool)
+            and wrap_chars > 0
+        ):
+            raise ValueError(f"layout.wrap_chars 必须为正整数，当前值: {wrap_chars!r}")
+        expected_max_chars = wrap_chars * 2
+        max_chars_per_card = layout_cfg.get("max_chars_per_card")
+        if max_chars_per_card is None:
+            layout_cfg["max_chars_per_card"] = expected_max_chars
+            max_chars_per_card = expected_max_chars
+        elif not (
+            isinstance(max_chars_per_card, int)
+            and not isinstance(max_chars_per_card, bool)
+            and max_chars_per_card > 0
+        ):
+            raise ValueError(
+                "layout.max_chars_per_card 必须为正整数，"
+                f"当前值: {max_chars_per_card!r}"
+            )
+
+        if max_chars_per_card != expected_max_chars:
+            print(
+                "警告: layout.max_chars_per_card="
+                f"{max_chars_per_card} 与 layout.wrap_chars*2={expected_max_chars} 不一致"
+            )
 
     # ── 路径安全校验 ──
     # manim_script 必须在项目目录内

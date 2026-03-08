@@ -2,6 +2,7 @@
 管线编排 — 所有 step 函数 + run_pipeline 入口
 """
 
+import hashlib
 import json
 import os
 import shutil
@@ -10,7 +11,7 @@ import sys
 import tempfile
 import time
 
-from .utils import get_duration, sanitize_filename, _output_name
+from .utils import get_duration, sanitize_filename, _output_name, split_long_sentences
 from engines.tts import get_tts_engine
 from engines.image import get_image_engine
 
@@ -34,16 +35,39 @@ def _concat_audios(audio_paths, output_path):
         os.remove(list_file)
 
 
+def _build_tts_voice_signature(voice):
+    """构建用于缓存和指纹计算的语音配置签名"""
+    fields = ["provider", "voice_type", "speed", "cluster"]
+    payload = {field: str(voice.get(field, "")) for field in fields}
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def _compute_tts_fingerprint(cfg):
+    """计算 TTS 输入指纹，用于判断是否可跳过整步"""
+    payload = {
+        "narration": [scene.get("narration", "") for scene in cfg.get("scenes", [])],
+        "max_chars_per_card": cfg.get("layout", {}).get("max_chars_per_card"),
+        "voice": _build_tts_voice_signature(cfg.get("voice", {})),
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()
+
+
 def _tts_scene(cfg, scene, audio_dir):
     """单个场景的逐句 TTS → 测时长 → 拼接 → 返回 timing dict"""
     voice = cfg["voice"]
     name = scene["name"]
     full_text = scene["narration"].strip()
-    sentences = [s.strip() for s in full_text.split("\n") if s.strip()]
+    raw_sentences = [s.strip() for s in full_text.split("\n") if s.strip()]
 
-    if not sentences:
+    if not raw_sentences:
         print(f"\n  [{name}] 错误: narration 为空")
         sys.exit(1)
+
+    # 拆分超长句子（与渲染逻辑保持一致）
+    keywords = scene.get("illustration_keywords", [])
+    max_chars = cfg.get("layout", {}).get("max_chars_per_card", 18)
+    sentences, _ = split_long_sentences(raw_sentences, keywords, max_chars)
 
     print(f"\n  [{name}] {len(sentences)} 句")
     t0 = time.time()
@@ -52,9 +76,13 @@ def _tts_scene(cfg, scene, audio_dir):
     sent_durations = []
 
     engine = get_tts_engine(voice)
+    voice_signature = _build_tts_voice_signature(voice)
 
     for i, sentence in enumerate(sentences):
-        sent_path = os.path.join(audio_dir, f"{name}_s{i:02d}.mp3")
+        sentence_hash = hashlib.md5(
+            f"{sentence}|{voice_signature}".encode("utf-8")
+        ).hexdigest()[:8]
+        sent_path = os.path.join(audio_dir, f"{name}_{sentence_hash}.mp3")
 
         if os.path.exists(sent_path):
             dur = get_duration(sent_path)
@@ -75,11 +103,20 @@ def _tts_scene(cfg, scene, audio_dir):
 
     # 拼接成场景完整音频
     scene_audio = os.path.join(audio_dir, f"{name}.mp3")
-    if not os.path.exists(scene_audio):
+    scene_manifest = os.path.join(audio_dir, f"{name}.sentences")
+    current_manifest = "\n".join(os.path.basename(p) for p in sent_paths)
+    previous_manifest = None
+    if os.path.exists(scene_manifest):
+        with open(scene_manifest, encoding="utf-8") as f:
+            previous_manifest = f.read()
+
+    if (not os.path.exists(scene_audio)) or (previous_manifest != current_manifest):
         if len(sent_paths) == 1:
             shutil.copy2(sent_paths[0], scene_audio)
         else:
             _concat_audios(sent_paths, scene_audio)
+        with open(scene_manifest, "w", encoding="utf-8") as f:
+            f.write(current_manifest)
 
     total = round(sum(sent_durations), 2)
     elapsed_time = time.time() - t0
@@ -94,9 +131,17 @@ def step_tts(cfg):
     """逐句 TTS → 测时长 → 拼接 → 写入 timing"""
     audio_dir = cfg["_audio_dir"]
     timing_file = cfg["_timing_file"]
+    fingerprint_file = os.path.join(audio_dir, "_tts_fingerprint.md5")
+    current_fingerprint = _compute_tts_fingerprint(cfg)
 
     # 检查是否可以跳过
-    all_exist = os.path.exists(timing_file)
+    all_exist = os.path.exists(timing_file) and os.path.exists(fingerprint_file)
+    if all_exist:
+        with open(fingerprint_file, encoding="utf-8") as f:
+            cached_fingerprint = f.read().strip()
+        if cached_fingerprint != current_fingerprint:
+            all_exist = False
+
     if all_exist:
         for scene in cfg["scenes"]:
             if not os.path.exists(os.path.join(audio_dir, f"{scene['name']}.mp3")):
@@ -129,6 +174,8 @@ def step_tts(cfg):
     os.makedirs(os.path.dirname(timing_file), exist_ok=True)
     with open(timing_file, "w") as f:
         json.dump(timing, f, indent=2)
+    with open(fingerprint_file, "w", encoding="utf-8") as f:
+        f.write(current_fingerprint)
     print(f"\n  Timing 写入: {timing_file}")
     print(f"\n  音频保存在: {audio_dir}")
     return timing

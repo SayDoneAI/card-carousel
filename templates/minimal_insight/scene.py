@@ -25,7 +25,6 @@
 from manim import *
 import json
 import os
-import re
 import sys
 
 import numpy as np
@@ -51,10 +50,6 @@ _DEFAULT_MEDIA = os.path.join(_DIR, "media", "videos", "scene")
 AUDIO_DIR = os.environ.get("CARD_CAROUSEL_AUDIO_DIR", os.path.join(_DEFAULT_MEDIA, "audio"))
 TIMING_FILE = os.environ.get("CARD_CAROUSEL_TIMING_FILE", os.path.join(_DEFAULT_MEDIA, "_timing.json"))
 ASSETS_DIR = os.path.join(_DIR, "assets", "illustrations")
-
-
-def _sanitize_filename(name):
-    return re.sub(r'[^\w\-]', '_', name.strip().lower())
 
 
 def _audio(name):
@@ -141,13 +136,8 @@ class _Timeline:
 
 def _wrap_chinese(text, max_chars=9):
     """将中文文本按固定字数换行（还原原视频每行≤9字的排版）"""
-    lines = []
-    while len(text) > max_chars:
-        lines.append(text[:max_chars])
-        text = text[max_chars:]
-    if text:
-        lines.append(text)
-    return '\n'.join(lines)
+    from core.utils import wrap_chinese
+    return wrap_chinese(text, max_chars)
 
 
 _BG_CACHE = {}
@@ -187,7 +177,8 @@ def _remove_bg(path, threshold=220):
 
 
 def _load_illustration(keyword):
-    safe_name = _sanitize_filename(keyword)
+    from core.utils import sanitize_filename
+    safe_name = sanitize_filename(keyword)
     for ext in (".png", ".jpg", ".jpeg"):
         path = os.path.join(ASSETS_DIR, f"{safe_name}{ext}")
         if os.path.exists(path):
@@ -328,8 +319,13 @@ class Scene01_Cards(Scene):
             return
 
         narration = scene_cfg["narration"].strip()
-        sentences = [s.strip() for s in narration.split("\n") if s.strip()]
+        raw_sentences = [s.strip() for s in narration.split("\n") if s.strip()]
         keywords = scene_cfg.get("illustration_keywords", [])
+
+        # 拆分超长句子（与 TTS 逻辑保持一致）
+        max_chars = cfg.get("layout", {}).get("max_chars_per_card", 18)
+        from core.utils import split_long_sentences
+        sentences, keywords = split_long_sentences(raw_sentences, keywords, max_chars)
 
         # ── 布局 ──
         prev_title = None

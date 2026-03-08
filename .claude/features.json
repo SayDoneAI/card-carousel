@@ -1,0 +1,104 @@
+{
+  "version": "v2",
+  "updated": "2026-03-08",
+  "note": "图文卡片口播视频生成管线 - 还原@深度进化Theo风格布局，支持 Manim 渲染 + 火山引擎TTS + doubao插画生成",
+  "features": [
+    {
+      "id": "F001",
+      "name": "TTS 语音合成",
+      "status": "done",
+      "description": "支持 Edge TTS 和火山引擎 TTS 双引擎语音合成，逐句生成 → 测时长 → 拼接",
+      "acceptance": [
+        "火山引擎 TTS 能生成清晰自然的中文语音",
+        "逐句缓存避免重复生成"
+      ]
+    },
+    {
+      "id": "F002",
+      "name": "AI 插画生成",
+      "status": "done",
+      "description": "使用 doubao-seedream 或 kling 生成配图，按关键词缓存，支持背景去除",
+      "acceptance": [
+        "生成的插画能融入白色卡片背景",
+        "null 关键词保持上一张插画不切换"
+      ]
+    },
+    {
+      "id": "F003",
+      "name": "Manim 竖屏渲染",
+      "status": "done",
+      "description": "1080x1440 竖屏卡片布局渲染，含 logo、主题句、正文、拼音、插画、免责、底栏",
+      "acceptance": [
+        "文字/插画比例还原原视频",
+        "动态定位避免元素重叠"
+      ]
+    },
+    {
+      "id": "F004",
+      "name": "音视频合成管线",
+      "status": "done",
+      "description": "TTS→插画→渲染→配音→拼接的5步管线，支持单步执行和全量执行",
+      "acceptance": [
+        "python pipeline.py config.yaml 全量执行输出最终视频",
+        "各步骤可独立运行"
+      ]
+    },
+    {
+      "id": "F005",
+      "name": "文本拆分重构",
+      "status": "done",
+      "description": "统一文本拆分逻辑并修复 TTS 缓存，解决超长句子卡片重叠并保持音视频同步",
+      "acceptance": [
+        "超长句子（>18字）可拆分为多张卡片渲染",
+        "TTS 缓存按完整语音签名命中，配置变更不误用旧缓存",
+        "手动验证音视频同步正确"
+      ],
+      "verification": {
+        "scope": "文本拆分重构 + TTS 缓存修复",
+        "verifiedAt": "2026-03-08T07:28:41Z",
+        "verifiedBy": "codex-cli",
+        "status": "pass",
+        "testsRun": false,
+        "buildSuccess": true,
+        "acceptanceCovered": true,
+        "notes": [
+          "当前无自动化测试套件，未执行测试命令。",
+          "已手动验证文本拆分后卡片渲染与音视频同步。"
+        ]
+      }
+    }
+  ],
+  "criticalPaths": [
+    {
+      "id": "CP-01",
+      "name": "配置 → TTS → 插画 → 渲染 → 配音 → 拼接输出",
+      "steps": [
+        "加载config.yaml",
+        "逐句TTS生成音频",
+        "AI生成插画",
+        "Manim渲染竖屏视频",
+        "合并音频到视频",
+        "拼接最终输出"
+      ],
+      "features": [
+        "F001",
+        "F002",
+        "F003",
+        "F004"
+      ],
+      "modules": [
+        "pipeline.py",
+        "explainer.py",
+        "config.yaml"
+      ],
+      "status": "manually_verified",
+      "evidence": {
+        "method": "manual",
+        "detail": "全量执行 pipeline.py config.yaml 成功输出 黄赋_20260307.mp4 (49.8s, 1.4MB)",
+        "verifiedAt": "2026-03-07T10:00:00+08:00",
+        "verifiedBy": "user"
+      }
+    }
+  ],
+  "reviewLessons": []
+}
