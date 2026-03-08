@@ -1,0 +1,25 @@
+name: portrait-notebook
+description: "人像笔记本 — 真人照片背景 + 速写本插画 + 字幕"
+
+layout:
+  font: "PingFang SC"
+  wrap_chars: 12
+  max_chars_per_card: 24
+  illustration_size: 5.0
+  portrait_image: "assets/huangfu.png"
+  colors:
+    bg: "#000000"
+    text: "#FFFFFF"
+    accent: "#FF6B35"
+    subtitle: "#FF6B35"
+    notebook_bg: "#F5F0E8"
+    notebook_spiral: "#888888"
+
+brand_defaults:
+  logo_char: "赋"
+  author: "@黄赋"
+  topic: "AI生存指南 ①（企业篇）"
+  subtitle: "企业人工智能转型三个目标"
+  pinyin: ""
+  disclaimer: ""
+  footer_tags: []

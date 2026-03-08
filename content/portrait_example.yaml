@@ -1,0 +1,41 @@
+# 内容配置示例 — 使用 portrait-notebook 模板
+title: "黄赋-AI生存指南01"
+template: portrait-notebook
+
+# 覆盖模板品牌默认值（可选）
+brand:
+  logo_char: "赋"
+  author: "@黄赋"
+  topic: "AI生存指南 ①（企业篇）"
+  subtitle: "企业人工智能转型三个目标"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  style_prompt: "Sketch illustration on cream paper, loose pencil drawing style, simple composition, no text, centered on page, warm tones"
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+  format: mp4
+
+scenes:
+  - name: PortraitNotebookScene
+    narration: |
+      企业引入AI的第一个目标是降低成本
+      第二个目标是提升效率
+      第三个目标是创造新的商业价值
+    illustration_keywords:
+      - cost reduction AI
+      - efficiency improvement
+      - business value creation

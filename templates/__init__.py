@@ -27,3 +27,4 @@ def get_template(name: str) -> BaseTemplate:
 
 # ── 导入内置模板（触发 @register 自注册）──
 import templates.minimal_insight  # noqa: E402, F401
+import templates.portrait_notebook  # noqa: E402, F401

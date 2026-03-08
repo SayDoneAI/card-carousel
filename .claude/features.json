@@ -66,6 +66,33 @@
           "已手动验证文本拆分后卡片渲染与音视频同步。"
         ]
       }
+    },
+    {
+      "id": "F006",
+      "name": "portrait-notebook 模板",
+      "status": "done",
+      "description": "第二个视频模板，竖屏 1080x1920（9:16），人像照片背景 + 笔记本容器（白色圆角矩形 + 左侧螺旋装订线）+ 插画左右滑动切换 + TTS 字幕 + 固定副标题",
+      "acceptance": [
+        "模板能被注册系统发现：get_template('portrait-notebook') 返回正确对象",
+        "python -m py_compile templates/portrait_notebook/scene.py 语法通过",
+        "scene.py 按 1080x1920 竖屏比例配置",
+        "笔记本容器关键词不变时复用已入场对象（无幽灵对象问题）"
+      ],
+      "verification": {
+        "scope": "portrait-notebook 模板新增",
+        "verifiedAt": "2026-03-08",
+        "verifiedBy": "claude-cli + codex-cli",
+        "status": "pass",
+        "testsRun": false,
+        "buildSuccess": true,
+        "acceptanceCovered": true,
+        "notes": [
+          "无自动化测试套件，无测试命令可执行",
+          "python -m py_compile 语法验证通过",
+          "模板注册验证通过：['minimal-insight', 'portrait-notebook']",
+          "Codex 代码审查 APPROVED（2轮，修复了 prev_notebook_group 幽灵对象问题）"
+        ]
+      }
     }
   ],
   "criticalPaths": [
@@ -94,7 +121,7 @@
       "status": "manually_verified",
       "evidence": {
         "method": "manual",
-        "detail": "全量执行 pipeline.py config.yaml 成功输出 黄赋_20260307.mp4 (49.8s, 1.4MB)",
+        "detail": "全量执行 pipeline.py config.yaml 成功输出 黄赋_20260307.mp4 (49.8s, 1.4MB); F006 portrait-notebook 模板已接入注册系统，完整管线验证待用户手动执行",
         "verifiedAt": "2026-03-07T10:00:00+08:00",
         "verifiedBy": "user"
       }
