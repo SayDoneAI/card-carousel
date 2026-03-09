@@ -24,3 +24,8 @@ class PortraitNotebookTemplate(BaseTemplate):
 
     def get_scene_classes(self) -> list[str]:
         return ["PortraitNotebookScene"]
+
+    def get_positionable_elements(self) -> list[dict]:
+        """返回可定位元素的元数据"""
+        defaults = self.get_default_config()
+        return defaults.get("positionable_elements", [])

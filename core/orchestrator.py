@@ -302,7 +302,7 @@ def step_illustrations(cfg):
             generated += 1
             print(f"    -> {found_path}")
         else:
-            print(f"    警告: 生成完成但未找到输出文件")
+            print("    警告: 生成完成但未找到输出文件")
             failed += 1
 
     print(f"\n  完成: 生成 {generated} 张, 跳过 {skipped} 张, 失败 {failed} 张")

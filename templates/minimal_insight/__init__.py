@@ -23,3 +23,8 @@ class MinimalInsightTemplate(BaseTemplate):
 
     def get_scene_classes(self) -> list[str]:
         return ["Scene01_Cards"]
+
+    def get_positionable_elements(self) -> list[dict]:
+        """返回可调整位置的元素元数据"""
+        config = self.get_default_config()
+        return config.get("positionable_elements", [])

@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>模板预览编辑器 - Manim 真实渲染</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d9dee5;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --focus: rgba(37, 99, 235, 0.16);
+      --active-row: #e8f0ff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .layout {
+      display: flex;
+      height: 100vh;
+      gap: 16px;
+      padding: 16px;
+      min-height: 0;
+    }
+
+    .preview-area {
+      flex: 0 0 60%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .preview-container {
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #preview-img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+      object-fit: contain;
+      display: none;
+    }
+
+    #preview-img.visible {
+      display: block;
+    }
+
+    .placeholder {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .placeholder.hidden {
+      display: none;
+    }
+
+    .spinner {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .spinner.visible {
+      display: flex;
+    }
+
+    .spinner-ring {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner-text {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-bar {
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .status-indicator.success {
+      background: var(--success);
+    }
+
+    .status-indicator.error {
+      background: var(--error);
+    }
+
+    .status-text {
+      flex: 1;
+      color: var(--text);
+    }
+
+    .panel {
+      flex: 0 0 40%;
+      height: 100%;
+      min-height: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fafbfc;
+    }
+
+    .head-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      flex: 1;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .field select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 13px;
+      background: white;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    button:hover {
+      background: var(--active-row);
+      border-color: var(--accent);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    button.primary:hover {
+      background: #1d4ed8;
+    }
+
+    button.primary.modified {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .panel-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .section {
+      margin-bottom: 24px;
+      flex: 0 0 auto;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 8px;
+    }
+
+    .section-header:hover {
+      background: #f1f5f9;
+    }
+
+    .section-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .section-content {
+      padding: 8px 0;
+    }
+
+    .section-content.collapsed {
+      display: none;
+    }
+
+    .param-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+    }
+
+    .param-row:hover {
+      background: #f8fafc;
+    }
+
+    .param-label {
+      flex: 0 0 100px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .param-input {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    input[type="color"] {
+      width: 40px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .color-preview {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .palette-item {
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .palette-item:hover {
+      border-color: var(--accent);
+      background: var(--focus);
+    }
+
+    .palette-swatches {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .palette-name {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .gradient-options {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      background: #fafcff;
+    }
+
+    .gradient-options.hidden {
+      display: none;
+    }
+
+    .footer-tags {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tag-input {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .tag-input input {
+      flex: 1;
+    }
+
+    .tag-input button {
+      padding: 6px 12px;
+      font-size: 11px;
+    }
+
+    .panel-error {
+      padding: 12px;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      background: #fff1f2;
+      color: #b91c1c;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .param-note {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── 单卡片编辑区 ─────────────────────────────────────────────── */
+    .single-card-editor {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-field-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    textarea.card-narration {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+      line-height: 1.6;
+    }
+
+    textarea.card-narration:focus,
+    input.card-keyword:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--focus);
+    }
+
+    input.card-keyword {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    /* ── 样式调整滑块 ─────────────────────────────────────────────── */
+    .slider-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--line);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .slider-row input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .slider-value {
+      min-width: 50px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .animation-info {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: #4b5563;
+      line-height: 1.6;
+    }
+
+    .animation-line {
+      margin: 0;
+    }
+
+    .animation-note {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #d1d5db;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    /* ── 位置调整面板 ──────────────────────────────────────────────── */
+    .position-section {
+      margin-bottom: 24px;
+    }
+
+    .position-section.hidden {
+      display: none;
+    }
+
+    .position-element-card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .position-element-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .position-element-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .position-reset-btn {
+      padding: 3px 8px;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #f8fafc;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .position-reset-btn:hover {
+      background: var(--active-row);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .position-axis-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .position-slider-field {
+      margin-bottom: 6px;
+    }
+
+    .position-reset-all-bar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+
+    .position-reset-all-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: white;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .position-reset-all-btn:hover {
+      background: var(--active-row);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- 左侧预览区 -->
+    <section class="preview-area">
+      <div class="preview-container">
+        <div id="placeholder" class="placeholder">
+          <p>👆 点击「渲染预览」生成真实预览</p>
+          <p style="font-size: 12px; margin-top: 8px;">需要先启动后端: <code>python tools/preview_server.py</code></p>
+        </div>
+        <div id="spinner" class="spinner">
+          <div class="spinner-ring"></div>
+          <div class="spinner-text">Manim 渲染中...（约 5-10 秒）</div>
+        </div>
+        <img id="preview-img" alt="预览图" />
+      </div>
+      <div class="status-bar">
+        <div id="status-indicator" class="status-indicator"></div>
+        <div id="status-text" class="status-text">就绪</div>
+      </div>
+    </section>
+
+    <!-- 右侧参数面板 -->
+    <aside class="panel">
+      <div class="panel-head">
+        <div class="head-row">
+          <div class="field">
+            <label for="template-select">模板选择</label>
+            <select id="template-select">
+              <option value="minimal-insight">极简洞见</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="render-btn" class="primary">🎬 渲染预览</button>
+          <button id="reset-btn">🔄 重置为默认</button>
+        </div>
+      </div>
+
+      <div class="panel-body" id="panel-body">
+        <!-- 动态生成参数面板 -->
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const API_BASE = '';
+    const PREVIEW_SERVER_OFFLINE_MESSAGE = '无法连接预览服务器，请确认 preview_server.py 已启动';
+    const templateDefaultsCache = {};
+    const templateManifestCache = {};
+    const INTEGER_LAYOUT_FIELDS = new Set(['layout.pixel_height', 'layout.wrap_chars', 'layout.max_chars_per_card']);
+
+    // 一键配色方案
+    const COLOR_PALETTES = [
+      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#000000', accent: '#C0392B' } },
+      { name: '深色模式', colors: { bg: '#1A1A1A', text: '#FFFFFF', accent: '#3B82F6' } },
+      { name: '温暖米色', colors: { bg: '#F5F1E8', text: '#2C2416', accent: '#D97706' } },
+      { name: '清新绿', colors: { bg: '#F0FDF4', text: '#14532D', accent: '#10B981' } },
+      { name: '优雅紫', colors: { bg: '#FAF5FF', text: '#4C1D95', accent: '#8B5CF6' } },
+      { name: '科技蓝', colors: { bg: '#EFF6FF', text: '#1E3A8A', accent: '#2563EB' } },
+      { name: '暖橙', colors: { bg: '#FFF7ED', text: '#7C2D12', accent: '#EA580C' } },
+      { name: '冷灰', colors: { bg: '#F8FAFC', text: '#0F172A', accent: '#64748B' } },
+      { name: '粉红', colors: { bg: '#FDF2F8', text: '#831843', accent: '#EC4899' } },
+      { name: '青色', colors: { bg: '#ECFEFF', text: '#164E63', accent: '#06B6D4' } }
+    ];
+
+
+    // ── 内容编辑状态 ──────────────────────────────────────────────
+    // scenes: [{name, narration, illustration_keywords: [str|null]}]
+    let currentScenes = [];
+
+    // 各模板的默认示例 scenes（首次打开时显示）
+    const TEMPLATE_DEFAULT_SCENES = {
+      'minimal-insight': [
+        {
+          name: 'Scene01_Cards',
+          narration: '真正阻碍一个人成长的从来不是能力不足\n而是认知顺序的严重错位',
+          illustration_keywords: ['growth obstacle', null]
+        }
+      ],
+      'portrait-notebook': [
+        {
+          name: 'PortraitNotebookScene',
+          narration: '企业引入AI的第一个目标是降低成本\n第二个目标是提升效率\n第三个目标是创造新的商业价值',
+          illustration_keywords: ['cost reduction AI', 'efficiency improvement', 'business value creation']
+        }
+      ]
+    };
+
+    function getDefaultSceneNameForTemplate(template) {
+      const defs = TEMPLATE_DEFAULT_SCENES[template];
+      return defs && defs[0] ? defs[0].name : 'Scene01';
+    }
+
+    function loadScenesFromStorage(template) {
+      const key = `scenes_${template}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) { /* ignore */ }
+      }
+      // 返回模板默认内容的深拷贝
+      const defaults = TEMPLATE_DEFAULT_SCENES[template];
+      return defaults ? JSON.parse(JSON.stringify(defaults)) : [
+        { name: getDefaultSceneNameForTemplate(template), narration: '示例文字', illustration_keywords: [] }
+      ];
+    }
+
+    function saveScenesForTemplate(template) {
+      localStorage.setItem(`scenes_${template}`, JSON.stringify(currentScenes));
+    }
+
+    function updateScenePreviewSelect() {
+      // 单卡片模式不需要场景选择器
+    }
+
+    // 返回当前要渲染的 scenes（单卡片模式：始终返回第一个场景）
+    function getScenesToRender() {
+      return currentScenes.length > 0 ? [currentScenes[0]] : [];
+    }
+
+    // 状态
+    let currentTemplate = 'minimal-insight';
+    let currentParams = {};
+    let currentManifestElements = []; // positionable_elements from manifest
+    let isModified = false;
+    let previewServerAvailable = true;
+    let currentPreviewUrl = null;
+    let renderInFlight = false;  // last-write-wins：当前是否有渲染在飞
+    let pendingRender = null;    // last-write-wins：是否有待执行的补偿渲染
+    let _latestRequestId = 0;    // 单调递增请求 ID，用于丢弃过期响应
+
+    // UI 元素
+    const ui = {
+      templateSelect: document.getElementById('template-select'),
+      renderBtn: document.getElementById('render-btn'),
+      resetBtn: document.getElementById('reset-btn'),
+      placeholder: document.getElementById('placeholder'),
+      spinner: document.getElementById('spinner'),
+      previewImg: document.getElementById('preview-img'),
+      statusIndicator: document.getElementById('status-indicator'),
+      statusText: document.getElementById('status-text'),
+      panelBody: document.getElementById('panel-body')
+    };
+
+    // 初始化
+    async function init() {
+      await populateTemplateSelector();
+      await loadTemplate(currentTemplate);
+      await loadTemplateManifest(currentTemplate);
+      renderParamPanel();
+
+      ui.templateSelect.addEventListener('change', async (e) => {
+        currentTemplate = e.target.value;
+        currentManifestElements = [];
+        _latestRequestId++;  // 使旧请求失效
+        await loadTemplate(currentTemplate);
+        await loadTemplateManifest(currentTemplate);
+        renderParamPanel();
+        clearPreview();
+      });
+
+      ui.renderBtn.addEventListener('click', scheduleRender);
+      ui.resetBtn.addEventListener('click', resetToDefaults);
+
+      // 尝试加载已有视频帧
+      if (previewServerAvailable) {
+        await loadExistingFrame();
+      }
+    }
+
+    // 从 /api/templates 动态填充模板选择器
+    async function populateTemplateSelector() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/templates`);
+        if (!resp.ok) return;
+        const payload = await resp.json();
+        const templates = Array.isArray(payload) ? payload : (payload.templates || []);
+        if (templates.length === 0) return;
+
+        ui.templateSelect.replaceChildren();
+        templates.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = String(t.id || t.name || '');
+          opt.textContent = String(t.name || t.id || '');
+          if (opt.value === currentTemplate) opt.selected = true;
+          ui.templateSelect.appendChild(opt);
+        });
+
+        // 同步 currentTemplate 到第一个选项（如果原值不在列表中）
+        const ids = templates.map(t => String(t.id || t.name || ''));
+        if (!ids.includes(currentTemplate) && ids.length > 0) {
+          currentTemplate = ids[0];
+          ui.templateSelect.value = currentTemplate;
+        }
+      } catch (e) {
+        console.warn('动态加载模板列表失败，使用硬编码列表:', e);
+      }
+    }
+
+    // 从 /api/template_manifest 获取 positionable_elements
+    async function fetchTemplateManifest(template) {
+      if (templateManifestCache[template]) {
+        return templateManifestCache[template];
+      }
+      const resp = await fetch(`${API_BASE}/api/template_manifest?template=${encodeURIComponent(template)}`);
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
+      }
+      const payload = await resp.json();
+      const elements = (payload && Array.isArray(payload.positionable_elements))
+        ? payload.positionable_elements
+        : [];
+      templateManifestCache[template] = elements;
+      return elements;
+    }
+
+    // 加载模板的位置元数据，更新 currentManifestElements
+    async function loadTemplateManifest(template) {
+      try {
+        currentManifestElements = await fetchTemplateManifest(template);
+      } catch (e) {
+        console.warn('加载模板 manifest 失败:', e);
+        currentManifestElements = [];
+      }
+      // 初始化 positions：只保留仍在 manifest 中的元素
+      if (!currentParams.positions || typeof currentParams.positions !== 'object') {
+        currentParams.positions = {};
+      }
+      const validIds = new Set(currentManifestElements.map(el => el.id));
+      const cleaned = {};
+      for (const id of Object.keys(currentParams.positions)) {
+        if (validIds.has(id)) cleaned[id] = currentParams.positions[id];
+      }
+      currentParams.positions = cleaned;
+    }
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function isScalarValue(value) {
+      return value === null || ['string', 'number', 'boolean'].includes(typeof value);
+    }
+
+    function normalizeTemplateParams(params) {
+      if (!params || typeof params !== 'object') {
+        return params;
+      }
+
+      if (!params.brand || typeof params.brand !== 'object' || Array.isArray(params.brand)) {
+        params.brand = {};
+      }
+      if (Array.isArray(params.footer_tags) && !Array.isArray(params.brand.footer_tags)) {
+        params.brand.footer_tags = [...params.footer_tags];
+      }
+      delete params.footer_tags;
+
+      if (!params.layout || typeof params.layout !== 'object' || Array.isArray(params.layout)) {
+        params.layout = {};
+      }
+      // 迁移旧 layout.positions → positions（清理旧 localStorage 残留）
+      if (params.layout.positions && typeof params.layout.positions === 'object' && !Array.isArray(params.layout.positions)) {
+        if (!params.positions || typeof params.positions !== 'object' || Array.isArray(params.positions)) {
+          params.positions = {};
+        }
+        params.positions = { ...params.layout.positions, ...params.positions };
+        delete params.layout.positions;
+      }
+      if (!params.layout.colors || typeof params.layout.colors !== 'object' || Array.isArray(params.layout.colors)) {
+        params.layout.colors = {};
+      }
+      if (!Array.isArray(params.brand.footer_tags)) {
+        params.brand.footer_tags = [];
+      }
+      return params;
+    }
+
+    function getFooterTags() {
+      if (!currentParams.brand || typeof currentParams.brand !== 'object') {
+        currentParams.brand = {};
+      }
+      if (!Array.isArray(currentParams.brand.footer_tags)) {
+        currentParams.brand.footer_tags = [];
+      }
+      return currentParams.brand.footer_tags;
+    }
+
+    function deepMerge(base, override) {
+      if (!override || typeof override !== 'object') {
+        return base;
+      }
+      const output = Array.isArray(base) ? [...base] : { ...base };
+      for (const key of Object.keys(override)) {
+        const overrideValue = override[key];
+        const baseValue = output[key];
+        if (
+          baseValue &&
+          typeof baseValue === 'object' &&
+          !Array.isArray(baseValue) &&
+          overrideValue &&
+          typeof overrideValue === 'object' &&
+          !Array.isArray(overrideValue)
+        ) {
+          output[key] = deepMerge(baseValue, overrideValue);
+        } else {
+          output[key] = overrideValue;
+        }
+      }
+      return output;
+    }
+
+    async function readErrorMessage(response, fallbackText) {
+      try {
+        const payload = await response.json();
+        if (payload && typeof payload.error === 'string' && payload.error.trim()) {
+          return payload.error;
+        }
+      } catch (err) {
+        // ignore parse failure
+      }
+      return fallbackText;
+    }
+
+    async function fetchTemplateDefaults(template) {
+      if (templateDefaultsCache[template]) {
+        return deepClone(templateDefaultsCache[template]);
+      }
+
+      const response = await fetch(`${API_BASE}/api/template_defaults?template=${encodeURIComponent(template)}`);
+      if (!response.ok) {
+        const message = await readErrorMessage(response, `HTTP ${response.status}`);
+        throw new Error(message);
+      }
+
+      const payload = await response.json();
+      const defaults = payload && payload.defaults;
+      if (!defaults || typeof defaults !== 'object') {
+        throw new Error('后端返回的模板默认参数无效');
+      }
+
+      const normalizedDefaults = normalizeTemplateParams(deepClone(defaults));
+      templateDefaultsCache[template] = deepClone(normalizedDefaults);
+      return deepClone(normalizedDefaults);
+    }
+
+    // 加载模板配置
+    async function loadTemplate(template) {
+      let defaults;
+      try {
+        defaults = await fetchTemplateDefaults(template);
+        previewServerAvailable = true;
+      } catch (error) {
+        previewServerAvailable = false;
+        currentParams = normalizeTemplateParams({});
+        isModified = false;
+        updateRenderButton();
+        ui.resetBtn.disabled = true;
+        updateStatus('error', PREVIEW_SERVER_OFFLINE_MESSAGE);
+        console.error('加载模板默认参数失败:', error);
+        return;
+      }
+      ui.resetBtn.disabled = false;
+
+      // 先加载 scenes，确保后续 saveParams() 时能写入正确的 scene 数据
+      currentScenes = loadScenesFromStorage(template);
+
+      const stored = localStorage.getItem(`template_${template}`);
+      if (!stored) {
+        currentParams = normalizeTemplateParams(defaults);
+      } else {
+        try {
+          const parsed = JSON.parse(stored);
+          // 检测旧版字段：top-level footer_tags 或 layout.positions
+          const needsMigration =
+            Array.isArray(parsed.footer_tags) ||
+            (parsed.layout && typeof parsed.layout.positions === 'object' && !Array.isArray(parsed.layout.positions));
+          currentParams = normalizeTemplateParams(deepMerge(defaults, parsed));
+          if (needsMigration) {
+            saveParams();  // 迁移完成后立即回写，持久化清理结果
+          }
+        } catch (error) {
+          currentParams = normalizeTemplateParams(defaults);
+        }
+      }
+      currentParams.layout.pixel_height = defaults.layout.pixel_height;
+      isModified = false;
+      updateRenderButton();
+    }
+
+    // 保存参数
+    function saveParams() {
+      const storableParams = deepClone(currentParams);
+      if (storableParams.layout && typeof storableParams.layout === 'object') {
+        delete storableParams.layout.pixel_height;
+      }
+      localStorage.setItem(`template_${currentTemplate}`, JSON.stringify(storableParams));
+      saveScenesForTemplate(currentTemplate);
+      isModified = true;
+      updateRenderButton();
+    }
+
+    // 更新渲染按钮状态
+    function updateRenderButton() {
+      if (!previewServerAvailable) {
+        ui.renderBtn.classList.remove('modified');
+        ui.renderBtn.textContent = '🎬 渲染预览';
+        ui.renderBtn.disabled = true;
+        return;
+      }
+
+      ui.renderBtn.disabled = false;
+      if (isModified) {
+        ui.renderBtn.classList.add('modified');
+        ui.renderBtn.textContent = '🎬 渲染预览（参数已修改）';
+      } else {
+        ui.renderBtn.classList.remove('modified');
+        ui.renderBtn.textContent = '🎬 渲染预览';
+      }
+    }
+
+    // 渲染参数面板
+    function renderParamPanel() {
+      ui.panelBody.replaceChildren();
+      if (!previewServerAvailable) {
+        const errorPanel = document.createElement('div');
+        errorPanel.className = 'panel-error';
+        errorPanel.textContent = PREVIEW_SERVER_OFFLINE_MESSAGE;
+        ui.panelBody.appendChild(errorPanel);
+        return;
+      }
+
+      // 1. 卡片内容（文字 + 字体大小 + 文字颜色）
+      ui.panelBody.appendChild(renderContentSection());
+
+      // 2. 样式调整（插画大小 + 每行字数自动计算）
+      ui.panelBody.appendChild(renderStyleSection());
+
+      // 3. 元素位置调整（如果模板有 positionable_elements）
+      ui.panelBody.appendChild(renderPositionSection());
+
+      // 4. 品牌
+      const brandFields = Object.keys(currentParams.brand)
+        .filter((key) => isScalarValue(currentParams.brand[key]))
+        .map((key) => ({
+          label: key,
+          key: `brand.${key}`,
+          type: 'text'
+        }));
+      const brandSection = createSection('品牌', brandFields);
+      ui.panelBody.appendChild(brandSection);
+
+      // 5. 底栏标签
+      const footerTags = getFooterTags();
+      if (footerTags.length > 0 || Object.prototype.hasOwnProperty.call(currentParams.brand, 'footer_tags')) {
+        const tagsSection = createSection('底栏标签', []);
+        const tagsContainer = document.createElement('div');
+        tagsContainer.className = 'footer-tags';
+        footerTags.forEach((tag, idx) => {
+          const tagRow = document.createElement('div');
+          tagRow.className = 'tag-input';
+          const tagInput = document.createElement('input');
+          tagInput.type = 'text';
+          tagInput.value = typeof tag === 'string' ? tag : String(tag ?? '');
+          tagInput.setAttribute('data-tag-idx', String(idx));
+
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '删除';
+          removeBtn.addEventListener('click', () => removeTag(idx));
+
+          tagInput.addEventListener('input', (e) => {
+            getFooterTags()[idx] = e.target.value;
+            saveParams();
+          });
+          tagRow.appendChild(tagInput);
+          tagRow.appendChild(removeBtn);
+          tagsContainer.appendChild(tagRow);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.textContent = '+ 添加标签';
+        addBtn.addEventListener('click', () => {
+          getFooterTags().push('新标签');
+          saveParams();
+          renderParamPanel();
+        });
+        tagsContainer.appendChild(addBtn);
+
+        tagsSection.querySelector('.section-content').appendChild(tagsContainer);
+        ui.panelBody.appendChild(tagsSection);
+      }
+
+      // 6. 动画效果
+      ui.panelBody.appendChild(renderAnimationSection());
+
+      // 7. 配色（放最下面）
+      const colorFields = Object.keys(currentParams.layout.colors).map(key => ({
+        label: key,
+        key: `layout.colors.${key}`,
+        type: 'color'
+      }));
+      const colorSection = createSection('配色', colorFields);
+
+      // 添加一键配色
+      const paletteGrid = document.createElement('div');
+      paletteGrid.className = 'palette-grid';
+      COLOR_PALETTES.forEach(palette => {
+        const item = document.createElement('div');
+        item.className = 'palette-item';
+        const swatches = document.createElement('div');
+        swatches.className = 'palette-swatches';
+
+        const swatchBg = document.createElement('div');
+        swatchBg.className = 'swatch';
+        swatchBg.style.background = String(palette.colors.bg || '');
+        swatches.appendChild(swatchBg);
+
+        const swatchText = document.createElement('div');
+        swatchText.className = 'swatch';
+        swatchText.style.background = String(palette.colors.text || '');
+        swatches.appendChild(swatchText);
+
+        const swatchAccent = document.createElement('div');
+        swatchAccent.className = 'swatch';
+        swatchAccent.style.background = String(palette.colors.accent || '');
+        swatches.appendChild(swatchAccent);
+
+        const paletteName = document.createElement('div');
+        paletteName.className = 'palette-name';
+        paletteName.textContent = String(palette.name || '');
+
+        item.appendChild(swatches);
+        item.appendChild(paletteName);
+        item.addEventListener('click', () => applyPalette(palette.colors));
+        paletteGrid.appendChild(item);
+      });
+      colorSection.querySelector('.section-content').appendChild(paletteGrid);
+      ui.panelBody.appendChild(colorSection);
+    }
+
+
+    // ── 样式调整区 ─────────────────────────────────────────────────────────────
+
+    function recomputeWrapChars() {
+      const cached = templateDefaultsCache[currentTemplate];
+      if (!cached || !cached.layout) return;
+      const defaultWrapChars = cached.layout.wrap_chars || 9;
+      const defaultFontSize = cached.layout.font_size || 44;
+      const currentFontSize = currentParams.layout.font_size || defaultFontSize;
+      const autoWrapChars = Math.floor(defaultWrapChars * defaultFontSize / currentFontSize);
+      currentParams.layout.wrap_chars = autoWrapChars;
+      currentParams.layout.max_chars_per_card = autoWrapChars * 2;
+      const display = document.getElementById('wrap-chars-display');
+      if (display) display.value = String(autoWrapChars);
+    }
+
+    function renderStyleSection() {
+      const section = document.createElement('div');
+      section.className = 'section';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = '样式调整';
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      // 插画大小滑块
+      const illusSizeField = document.createElement('div');
+      illusSizeField.className = 'slider-field';
+
+      const illusSizeLabel = document.createElement('div');
+      illusSizeLabel.className = 'card-field-label';
+      illusSizeLabel.textContent = '插画大小';
+      illusSizeField.appendChild(illusSizeLabel);
+
+      const illusSizeRow = document.createElement('div');
+      illusSizeRow.className = 'slider-row';
+
+      const illusSizeSlider = document.createElement('input');
+      illusSizeSlider.type = 'range';
+      illusSizeSlider.min = '2.0';
+      illusSizeSlider.max = '8.0';
+      illusSizeSlider.step = '0.5';
+      illusSizeSlider.value = String(currentParams.layout.illustration_size || 5.0);
+
+      const illusSizeValue = document.createElement('span');
+      illusSizeValue.className = 'slider-value';
+      illusSizeValue.textContent = illusSizeSlider.value;
+
+      illusSizeSlider.addEventListener('input', (e) => {
+        illusSizeValue.textContent = e.target.value;
+        currentParams.layout.illustration_size = parseFloat(e.target.value);
+        saveParams();
+      });
+
+      illusSizeRow.appendChild(illusSizeSlider);
+      illusSizeRow.appendChild(illusSizeValue);
+      illusSizeField.appendChild(illusSizeRow);
+      content.appendChild(illusSizeField);
+
+      // 每行字数（自动计算，只读显示）
+      const wrapCharsField = document.createElement('div');
+      wrapCharsField.className = 'param-row';
+
+      const wrapCharsLabel = document.createElement('label');
+      wrapCharsLabel.className = 'param-label';
+      wrapCharsLabel.textContent = '每行字数';
+
+      const wrapCharsInput = document.createElement('input');
+      wrapCharsInput.type = 'number';
+      wrapCharsInput.className = 'param-input';
+      wrapCharsInput.id = 'wrap-chars-display';
+      wrapCharsInput.disabled = true;
+      wrapCharsInput.title = '根据文字大小自动计算';
+
+      // 自动计算 wrap_chars
+      recomputeWrapChars();
+      wrapCharsInput.value = String(currentParams.layout.wrap_chars);
+
+      const wrapCharsNote = document.createElement('span');
+      wrapCharsNote.className = 'param-note';
+      wrapCharsNote.textContent = '（自动计算）';
+
+      const wrapCharsContainer = document.createElement('div');
+      wrapCharsContainer.className = 'param-input';
+      wrapCharsContainer.appendChild(wrapCharsInput);
+      wrapCharsContainer.appendChild(wrapCharsNote);
+
+      wrapCharsField.appendChild(wrapCharsLabel);
+      wrapCharsField.appendChild(wrapCharsContainer);
+      content.appendChild(wrapCharsField);
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
+    }
+
+    // ── 动画效果说明区 ─────────────────────────────────────────────────────────
+
+    function renderAnimationSection() {
+      const section = document.createElement('div');
+      section.className = 'section';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = '动画效果';
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      const infoBox = document.createElement('div');
+      infoBox.className = 'animation-info';
+
+      const templateAnimationText = {
+        'minimal-insight': [
+          '插画切换：左右滑动（旧图滑出左侧，新图从右侧滑入，0.5秒）',
+          '文字切换：直接替换',
+          '底栏：固定显示'
+        ],
+        'portrait-notebook': [
+          '插画切换：左右滑动（旧图滑出左侧，新图从右侧滑入，0.5秒）',
+          '字幕切换：直接替换',
+          '人像背景：固定显示'
+        ]
+      };
+
+      const lines = templateAnimationText[currentTemplate] || templateAnimationText['minimal-insight'];
+      lines.forEach((line) => {
+        const lineNode = document.createElement('p');
+        lineNode.className = 'animation-line';
+        lineNode.textContent = line;
+        infoBox.appendChild(lineNode);
+      });
+
+      const noteNode = document.createElement('p');
+      noteNode.className = 'animation-note';
+      noteNode.textContent = '动画效果由模板固定，暂不支持自定义';
+      infoBox.appendChild(noteNode);
+
+      content.appendChild(infoBox);
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
+    }
+
+
+    // ── 位置调整区 ─────────────────────────────────────────────────────────────
+
+    function renderPositionSection() {
+      const section = document.createElement('div');
+      section.className = 'section position-section';
+      section.id = 'position-section';
+
+      if (!currentManifestElements || currentManifestElements.length === 0) {
+        section.classList.add('hidden');
+        return section;
+      }
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = '元素位置';
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      const resetAllBar = document.createElement('div');
+      resetAllBar.className = 'position-reset-all-bar';
+      const resetAllBtn = document.createElement('button');
+      resetAllBtn.type = 'button';
+      resetAllBtn.className = 'position-reset-all-btn';
+      resetAllBtn.textContent = '全部重置';
+      resetAllBtn.addEventListener('click', () => {
+        if (!currentParams.positions) currentParams.positions = {};
+        currentParams.positions = {};
+        saveParams();
+        renderParamPanel();
+        scheduleRender();
+      });
+      resetAllBar.appendChild(resetAllBtn);
+      content.appendChild(resetAllBar);
+
+      currentManifestElements.forEach(el => {
+        content.appendChild(createPositionElementCard(el));
+      });
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
+    }
+
+    function createPositionElementCard(el) {
+      const card = document.createElement('div');
+      card.className = 'position-element-card';
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'position-element-title';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'position-element-name';
+      nameSpan.textContent = String(el.label || el.id);
+
+      const resetBtn = document.createElement('button');
+      resetBtn.type = 'button';
+      resetBtn.className = 'position-reset-btn';
+      resetBtn.textContent = '重置';
+      resetBtn.addEventListener('click', () => {
+        if (!currentParams.positions) currentParams.positions = {};
+        const fresh = { ...currentParams.positions };
+        delete fresh[el.id];
+        currentParams.positions = fresh;
+        saveParams();
+        renderParamPanel();
+        scheduleRender();
+      });
+
+      titleRow.appendChild(nameSpan);
+      titleRow.appendChild(resetBtn);
+      card.appendChild(titleRow);
+
+      if (!currentParams.positions) currentParams.positions = {};
+      const pos = currentParams.positions[el.id] || { x: el.default_x, y: el.default_y };
+
+      card.appendChild(
+        createPositionAxisSlider('X', el.id, 'x', pos.x, el.min_x, el.max_x, el.step, el)
+      );
+
+      card.appendChild(
+        createPositionAxisSlider('Y', el.id, 'y', pos.y, el.min_y, el.max_y, el.step, el)
+      );
+
+      return card;
+    }
+
+    function createPositionAxisSlider(axisLabel, elemId, axis, initialValue, min, max, step, el) {
+      const field = document.createElement('div');
+      field.className = 'position-slider-field';
+
+      const label = document.createElement('div');
+      label.className = 'position-axis-label';
+      label.textContent = `${axisLabel} 轴`;
+      field.appendChild(label);
+
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = String(min);
+      slider.max = String(max);
+      slider.step = String(step);
+      slider.value = String(initialValue);
+
+      const valueDisplay = document.createElement('span');
+      valueDisplay.className = 'slider-value';
+      valueDisplay.textContent = `${initialValue}%`;
+
+      // input 事件：更新参数并调度渲染（实时反馈，last-write-wins 保证不超发）
+      slider.addEventListener('input', (e) => {
+        const numVal = parseFloat(e.target.value);
+        valueDisplay.textContent = `${numVal}%`;
+
+        if (!currentParams.positions) currentParams.positions = {};
+        const prevPos = currentParams.positions[elemId] || { x: el.default_x, y: el.default_y };
+        currentParams.positions = {
+          ...currentParams.positions,
+          [elemId]: { ...prevPos, [axis]: numVal }
+        };
+        saveParams();
+        scheduleRender();
+      });
+
+      row.appendChild(slider);
+      row.appendChild(valueDisplay);
+      field.appendChild(row);
+      return field;
+    }
+
+    function getModifiedPositions() {
+      if (!currentParams.positions) return {};
+      const result = {};
+      for (const [id, pos] of Object.entries(currentParams.positions)) {
+        const el = currentManifestElements.find(e => e.id === id);
+        if (!el) {
+          result[id] = pos;
+          continue;
+        }
+        if (pos.x !== el.default_x || pos.y !== el.default_y) {
+          result[id] = pos;
+        }
+      }
+      return result;
+    }
+
+
+    // ── 内容编辑区 ─────────────────────────────────────────────────────────────
+
+    function renderContentSection() {
+      const section = document.createElement('div');
+      section.className = 'section';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = '卡片内容';
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      // 确保至少有一个场景
+      if (currentScenes.length === 0) {
+        currentScenes.push({
+          name: getDefaultSceneNameForTemplate(currentTemplate),
+          narration: '示例文字',
+          illustration_keywords: ['水墨画']
+        });
+      }
+
+      // 单卡片编辑器
+      const editor = document.createElement('div');
+      editor.className = 'single-card-editor';
+
+      const scene = currentScenes[0];
+
+      // 文字内容
+      const narrationLabel = document.createElement('div');
+      narrationLabel.className = 'card-field-label';
+      narrationLabel.textContent = '文字内容';
+
+      const narrationTA = document.createElement('textarea');
+      narrationTA.className = 'card-narration';
+      narrationTA.value = scene.narration;
+      narrationTA.placeholder = '输入卡片文字内容';
+      narrationTA.addEventListener('input', (e) => {
+        currentScenes[0].narration = e.target.value;
+        saveParams();
+      });
+
+      editor.appendChild(narrationLabel);
+      editor.appendChild(narrationTA);
+
+      // 文字大小滑块
+      const fontSizeField = document.createElement('div');
+      fontSizeField.className = 'slider-field';
+
+      const fontSizeLabel = document.createElement('div');
+      fontSizeLabel.className = 'card-field-label';
+      fontSizeLabel.textContent = '文字大小';
+      fontSizeField.appendChild(fontSizeLabel);
+
+      const fontSizeRow = document.createElement('div');
+      fontSizeRow.className = 'slider-row';
+
+      const fontSizeSlider = document.createElement('input');
+      fontSizeSlider.type = 'range';
+      fontSizeSlider.min = '24';
+      fontSizeSlider.max = '72';
+      fontSizeSlider.step = '2';
+      fontSizeSlider.value = String(currentParams.layout.font_size || 48);
+
+      const fontSizeValue = document.createElement('span');
+      fontSizeValue.className = 'slider-value';
+      fontSizeValue.textContent = fontSizeSlider.value;
+
+      fontSizeSlider.addEventListener('input', (e) => {
+        fontSizeValue.textContent = e.target.value;
+        currentParams.layout.font_size = parseInt(e.target.value, 10);
+        recomputeWrapChars();
+        saveParams();
+      });
+
+      fontSizeRow.appendChild(fontSizeSlider);
+      fontSizeRow.appendChild(fontSizeValue);
+      fontSizeField.appendChild(fontSizeRow);
+      editor.appendChild(fontSizeField);
+
+      // 文字颜色选择器
+      const textColorField = document.createElement('div');
+      textColorField.className = 'param-row';
+
+      const textColorLabel = document.createElement('div');
+      textColorLabel.className = 'param-label';
+      textColorLabel.textContent = '文字颜色';
+
+      const textColorContainer = document.createElement('div');
+      textColorContainer.className = 'param-input';
+
+      const textColorInput = document.createElement('input');
+      textColorInput.type = 'color';
+      textColorInput.value = currentParams.layout.colors.text || '#000000';
+      textColorInput.addEventListener('input', (e) => {
+        currentParams.layout.colors.text = e.target.value;
+        textColorText.value = e.target.value;
+        saveParams();
+      });
+
+      const textColorText = document.createElement('input');
+      textColorText.type = 'text';
+      textColorText.value = currentParams.layout.colors.text || '#000000';
+      textColorText.addEventListener('input', (e) => {
+        currentParams.layout.colors.text = e.target.value;
+        textColorInput.value = e.target.value;
+        saveParams();
+      });
+
+      textColorContainer.appendChild(textColorInput);
+      textColorContainer.appendChild(textColorText);
+      textColorField.appendChild(textColorLabel);
+      textColorField.appendChild(textColorContainer);
+      editor.appendChild(textColorField);
+
+      content.appendChild(editor);
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
+    }
+
+
+    // 创建参数区块
+    function createSection(title, fields) {
+      const section = document.createElement('div');
+      section.className = 'section';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = String(title || '');
+
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+      
+      const content = document.createElement('div');
+      content.className = 'section-content';
+      
+      fields.forEach(field => {
+        const row = document.createElement('div');
+        row.className = 'param-row';
+        
+        const label = document.createElement('div');
+        label.className = 'param-label';
+        label.textContent = field.label;
+        
+        const inputContainer = document.createElement('div');
+        inputContainer.className = 'param-input';
+        
+        if (field.type === 'color') {
+          const colorInput = document.createElement('input');
+          colorInput.type = 'color';
+          colorInput.value = getValueByPath(field.key);
+          colorInput.addEventListener('input', (e) => {
+            setValueByPath(field.key, e.target.value);
+            saveParams();
+          });
+          
+          const textInput = document.createElement('input');
+          textInput.type = 'text';
+          textInput.value = getValueByPath(field.key);
+          textInput.addEventListener('input', (e) => {
+            setValueByPath(field.key, e.target.value);
+            colorInput.value = e.target.value;
+            saveParams();
+          });
+          
+          inputContainer.appendChild(colorInput);
+          inputContainer.appendChild(textInput);
+        } else {
+          const input = document.createElement('input');
+          input.type = field.type;
+          input.value = getValueByPath(field.key);
+          if (field.step) input.step = field.step;
+          if (field.readonly) {
+            input.disabled = true;
+            input.title = field.hint || '只读参数';
+          } else {
+            input.addEventListener('input', (e) => {
+              let value = e.target.value;
+              if (field.type === 'number') {
+                const parser = field.parse === 'int' || INTEGER_LAYOUT_FIELDS.has(field.key) ? parseInt : parseFloat;
+                value = parser === parseInt ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
+                if (Number.isNaN(value)) {
+                  return;
+                }
+              }
+              setValueByPath(field.key, value);
+              saveParams();
+            });
+          }
+          inputContainer.appendChild(input);
+          if (field.hint) {
+            const note = document.createElement('span');
+            note.className = 'param-note';
+            note.textContent = field.hint;
+            inputContainer.appendChild(note);
+          }
+        }
+        
+        row.appendChild(label);
+        row.appendChild(inputContainer);
+        content.appendChild(row);
+      });
+      
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+      });
+      
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
+    }
+
+    // 路径操作
+    function getValueByPath(path) {
+      const keys = path.split('.');
+      let value = currentParams;
+      for (const key of keys) {
+        value = value[key];
+      }
+      return value;
+    }
+
+    function setValueByPath(path, value) {
+      const keys = path.split('.');
+      let obj = currentParams;
+      for (let i = 0; i < keys.length - 1; i++) {
+        obj = obj[keys[i]];
+      }
+      obj[keys[keys.length - 1]] = value;
+    }
+
+    // 应用配色方案
+    function applyPalette(colors) {
+      Object.assign(currentParams.layout.colors, colors);
+      saveParams();
+      renderParamPanel();
+    }
+
+    // 删除标签
+    function removeTag(idx) {
+      getFooterTags().splice(idx, 1);
+      saveParams();
+      renderParamPanel();
+    }
+
+    // 渲染预览
+    function revokeCurrentPreviewUrl() {
+      if (currentPreviewUrl) {
+        URL.revokeObjectURL(currentPreviewUrl);
+        currentPreviewUrl = null;
+      }
+    }
+
+    function showPreviewBlob(blob) {
+      revokeCurrentPreviewUrl();
+      currentPreviewUrl = URL.createObjectURL(blob);
+      ui.previewImg.src = currentPreviewUrl;
+      ui.previewImg.classList.add('visible');
+      ui.placeholder.classList.add('hidden');
+    }
+
+    // last-write-wins 串行化：最多同时一个在飞请求，新请求仅标记 pendingRender
+    async function scheduleRender() {
+      _latestRequestId++;  // 每次状态变更立即推进 ID，使进行中的旧请求失效
+      if (renderInFlight) {
+        pendingRender = true;
+        return;
+      }
+      renderInFlight = true;
+      try {
+        await renderPreview();
+      } finally {
+        renderInFlight = false;
+        if (pendingRender) {
+          pendingRender = null;
+          scheduleRender();
+        }
+      }
+    }
+
+    async function renderPreview() {
+      if (!previewServerAvailable) {
+        updateStatus('error', PREVIEW_SERVER_OFFLINE_MESSAGE);
+        return;
+      }
+
+      ui.renderBtn.disabled = true;
+      ui.placeholder.classList.add('hidden');
+      ui.previewImg.classList.remove('visible');
+      ui.spinner.classList.add('visible');
+      updateStatus('rendering', 'Manim 渲染中...');
+
+      recomputeWrapChars();
+
+      // 记录本次请求的 ID，响应返回后校验是否仍是最新请求
+      const myRequestId = ++_latestRequestId;
+
+      try {
+        const modifiedPositions = getModifiedPositions();
+        const requestBody = {
+          template: currentTemplate,
+          params: { ...currentParams, scenes: getScenesToRender() }
+        };
+        // 确保 layout.positions 不被发送到后端（防止旧残留数据混入）
+        if (requestBody.params.layout && requestBody.params.layout.positions) {
+          requestBody.params.layout = { ...requestBody.params.layout };
+          delete requestBody.params.layout.positions;
+        }
+        if (Object.keys(modifiedPositions).length > 0) {
+          requestBody.params.positions = modifiedPositions;
+        }
+        const response = await fetch(`${API_BASE}/api/render_frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        // 响应已到达，检查是否仍是最新请求（防止 stale response 覆盖新预览）
+        if (myRequestId !== _latestRequestId) {
+          return;  // 丢弃过期响应
+        }
+
+        if (response.status === 503) {
+          // 服务忙碌，延迟 1s 后重试一次
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          if (myRequestId !== _latestRequestId) return;  // 等待期间有新请求，丢弃
+          const retryResponse = await fetch(`${API_BASE}/api/render_frame`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
+          if (myRequestId !== _latestRequestId) return;
+          if (!retryResponse.ok) {
+            const message = await readErrorMessage(retryResponse, `HTTP ${retryResponse.status}`);
+            throw new Error(message);
+          }
+          const retryBlob = await retryResponse.blob();
+          showPreviewBlob(retryBlob);
+          isModified = false;
+          updateRenderButton();
+          updateStatus('success', '渲染成功');
+          return;
+        }
+
+        if (!response.ok) {
+          const message = await readErrorMessage(response, `HTTP ${response.status}`);
+          throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        showPreviewBlob(blob);
+
+        isModified = false;
+        updateRenderButton();
+        updateStatus('success', '渲染成功');
+      } catch (error) {
+        if (myRequestId !== _latestRequestId) {
+          return;  // 过期请求的错误，静默丢弃
+        }
+        ui.placeholder.classList.remove('hidden');
+        updateStatus('error', `渲染失败: ${error.message}`);
+      } finally {
+        ui.spinner.classList.remove('visible');
+        updateRenderButton();
+      }
+    }
+
+    // 加载已有视频帧
+    async function loadExistingFrame() {
+      if (!previewServerAvailable) {
+        return;
+      }
+      try {
+        const response = await fetch(`${API_BASE}/api/video_frame?template=${currentTemplate}`);
+        if (response.ok) {
+          const blob = await response.blob();
+          showPreviewBlob(blob);
+          updateStatus('success', '已加载视频帧');
+        }
+      } catch (error) {
+        console.warn('加载历史视频帧失败:', error);
+      }
+    }
+
+    // 重置为默认
+    async function resetToDefaults() {
+      if (!previewServerAvailable) {
+        updateStatus('error', PREVIEW_SERVER_OFFLINE_MESSAGE);
+        return;
+      }
+      if (confirm('确定要重置为默认配置吗？')) {
+        _latestRequestId++;  // 使旧请求失效
+        localStorage.removeItem(`template_${currentTemplate}`);
+        localStorage.removeItem(`scenes_${currentTemplate}`);
+        currentParams.positions = {};
+        await loadTemplate(currentTemplate);
+        renderParamPanel();
+        scheduleRender();
+      }
+    }
+
+    // 清空预览
+    function clearPreview() {
+      revokeCurrentPreviewUrl();
+      ui.previewImg.removeAttribute('src');
+      ui.previewImg.classList.remove('visible');
+      ui.placeholder.classList.remove('hidden');
+      updateStatus('ready', '就绪');
+    }
+
+    // 更新状态
+    function updateStatus(type, text) {
+      ui.statusIndicator.className = 'status-indicator';
+      if (type === 'success') {
+        ui.statusIndicator.classList.add('success');
+      } else if (type === 'error') {
+        ui.statusIndicator.classList.add('error');
+      }
+      ui.statusText.textContent = text;
+    }
+
+    // 启动
+    init().catch((error) => {
+      updateStatus('error', `初始化失败: ${error.message}`);
+    });
+  </script>
+</body>
+</html>

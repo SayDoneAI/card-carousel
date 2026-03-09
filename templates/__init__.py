@@ -25,6 +25,11 @@ def get_template(name: str) -> BaseTemplate:
     return REGISTRY[name]()
 
 
+def get_all_templates() -> dict[str, BaseTemplate]:
+    """获取所有已注册模板的实例字典"""
+    return {name: cls() for name, cls in REGISTRY.items()}
+
+
 # ── 导入内置模板（触发 @register 自注册）──
 import templates.minimal_insight  # noqa: E402, F401
 import templates.portrait_notebook  # noqa: E402, F401

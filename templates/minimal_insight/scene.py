@@ -22,13 +22,13 @@
   └─────────────────────────────┘
 """
 
+# ruff: noqa: F403,F405,E402
 from manim import *
 import json
 import os
 import sys
 
 import numpy as np
-import yaml
 from PIL import Image as PILImage
 
 # 竖屏配置 1080x1440 (3:4)
@@ -44,12 +44,25 @@ config.background_color = "#FFFFFF"  # 默认白色，Scene.construct 中会从 
 from pathlib import Path as _Path
 _DIR = os.environ.get("CARD_CAROUSEL_PROJECT_DIR", str(_Path(__file__).resolve().parents[2]))
 
+# 确保项目根在 sys.path，使 core 包可导入
+if _DIR not in sys.path:
+    sys.path.insert(0, _DIR)
+
+# 导入坐标转换工具
+from core.utils import percent_to_manim, is_explicitly_positioned, get_element_position
+
 # 支持通过环境变量直接注入音频/timing路径（新模板模式），回退到 Manim 默认目录
 # Manim 用脚本文件名 "scene" 作子目录名
 _DEFAULT_MEDIA = os.path.join(_DIR, "media", "videos", "scene")
 AUDIO_DIR = os.environ.get("CARD_CAROUSEL_AUDIO_DIR", os.path.join(_DEFAULT_MEDIA, "audio"))
 TIMING_FILE = os.environ.get("CARD_CAROUSEL_TIMING_FILE", os.path.join(_DEFAULT_MEDIA, "_timing.json"))
-ASSETS_DIR = os.path.join(_DIR, "assets", "illustrations")
+
+# 预览模式：优先从 CARD_CAROUSEL_PREVIEW_ASSETS_DIR 读取插画，回退到 assets/illustrations
+_PREVIEW_ASSETS_DIR = os.environ.get("CARD_CAROUSEL_PREVIEW_ASSETS_DIR")
+if _PREVIEW_ASSETS_DIR and os.path.isdir(_PREVIEW_ASSETS_DIR):
+    ASSETS_DIR = _PREVIEW_ASSETS_DIR
+else:
+    ASSETS_DIR = os.path.join(_DIR, "assets", "illustrations")
 
 
 def _audio(name):
@@ -83,6 +96,7 @@ def _load_config():
     return load_config(config_path)
 
 
+
 def _get_colors(cfg):
     """从 config 读取颜色配置，回退到默认值"""
     colors = cfg.get("layout", {}).get("colors", {})
@@ -99,6 +113,10 @@ def _get_colors(cfg):
 
 def _get_font(cfg):
     return cfg.get("layout", {}).get("font", "PingFang SC")
+
+
+def _get_font_size(cfg):
+    return cfg.get("layout", {}).get("font_size", 44)
 
 
 def _get_wrap_chars(cfg):
@@ -186,25 +204,119 @@ def _load_illustration(keyword):
     return None
 
 
+def _should_use_placeholder_mode(cfg):
+    preview_cfg = cfg.get("preview", {})
+    if not isinstance(preview_cfg, dict):
+        return False
+    return bool(preview_cfg.get("use_illustration_placeholder", False))
+
+
+def _hex_to_rgb(color, fallback=(255, 255, 255)):
+    if not isinstance(color, str):
+        return fallback
+    value = color.strip().lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    if len(value) != 6:
+        return fallback
+    try:
+        return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return fallback
+
+
+def _rgb_to_hex(rgb):
+    r, g, b = (max(0, min(255, int(v))) for v in rgb)
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def _shift_tone(rgb, ratio):
+    if ratio >= 0:
+        return tuple(channel + (255 - channel) * ratio for channel in rgb)
+    return tuple(channel * (1 + ratio) for channel in rgb)
+
+
+def _is_light_color(rgb):
+    r, g, b = rgb
+    brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return brightness >= 0.5
+
+
+def _build_illustration_placeholder(width, height, bg_color, font):
+    bg_rgb = _hex_to_rgb(bg_color)
+    bg_is_light = _is_light_color(bg_rgb)
+    fill_rgb = _shift_tone(bg_rgb, -0.22 if bg_is_light else 0.24)
+    stroke_rgb = _shift_tone(bg_rgb, -0.35 if bg_is_light else 0.38)
+    fill_color = _rgb_to_hex(fill_rgb)
+    stroke_color = _rgb_to_hex(stroke_rgb)
+
+    placeholder_box = Rectangle(
+        width=width,
+        height=height,
+        fill_color=fill_color,
+        fill_opacity=1,
+        stroke_color=stroke_color,
+        stroke_width=2,
+    )
+    placeholder_text = Text(
+        "插画占位",
+        font=font,
+        font_size=28,
+        color=stroke_color,
+        weight=MEDIUM,
+    )
+    if placeholder_text.width > width * 0.75:
+        placeholder_text.scale_to_fit_width(width * 0.75)
+    if placeholder_text.height > height * 0.45:
+        placeholder_text.scale_to_fit_height(height * 0.45)
+
+    return VGroup(placeholder_box, placeholder_text)
+
+
+def _build_illustration(keyword, cfg, colors, font, illus_size):
+    use_placeholder_only = _should_use_placeholder_mode(cfg)
+    img_path = None if use_placeholder_only else _load_illustration(keyword)
+    if not img_path:
+        if not use_placeholder_only:
+            return None
+        placeholder_height = min(illus_size * 0.75, 3.0)
+        return _build_illustration_placeholder(
+            width=illus_size,
+            height=placeholder_height,
+            bg_color=colors["bg"],
+            font=font,
+        )
+
+    illus = ImageMobject(img_path)
+    illus.scale_to_fit_width(illus_size)
+    if illus.height > 3.0:
+        illus.scale_to_fit_height(3.0)
+    return illus
+
+
 def _build_logo_header(cfg, colors, font):
-    """构建头部: 左上角圆圈logo + 居中作者名（还原原视频布局）"""
+    """构建头部: 左上角圆圈logo + 作者名"""
     brand_cfg = cfg.get("brand", {})
     logo_char = brand_cfg.get("logo_char", "深")
     author = brand_cfg.get("author", "@黄赋")
 
     C_TEXT = colors["text"]
 
-    # 圆圈 logo（左上角）
+    # 圆圈 logo（从配置读取位置）
     circle = Circle(radius=0.30, color=C_TEXT, stroke_width=2.5)
     logo_text = Text(logo_char, font=font, font_size=22, color=C_TEXT, weight=BOLD)
     logo = VGroup(circle, logo_text)
-    logo.to_edge(LEFT, buff=0.5)
-    logo.to_edge(UP, buff=0.45)
 
-    # 作者名（居中，与 logo 同一行）
+    # 从配置读取位置，回退到硬编码值
+    logo_x, logo_y = get_element_position(cfg, "logo", config.frame_width, config.frame_height,
+                                           fallback_fn=lambda: (-3.2, 4.5))
+    logo.move_to([logo_x, logo_y, 0])
+
+    # 作者名（从配置读取位置）
     author_text = Text(author, font=font, font_size=20, color=C_TEXT)
-    author_text.move_to(UP * logo.get_center()[1])  # 同一 Y 高度
-    author_text.set_x(0)
+    author_x, author_y = get_element_position(cfg, "author_name", config.frame_width, config.frame_height,
+                                               fallback_fn=lambda: (-1.8, 4.5))
+    author_text.move_to([author_x, author_y, 0])
 
     return VGroup(logo, author_text)
 
@@ -219,19 +331,28 @@ def _build_topic_line(cfg, colors, font):
         topic,
         font=font, font_size=24, color=colors["accent"],
     )
-    topic_text.move_to(UP * 3.7)
+    # 从配置读取位置，回退到硬编码值
+    topic_x, topic_y = get_element_position(cfg, "topic_text", config.frame_width, config.frame_height,
+                                             fallback_fn=lambda: (0, 3.5))
+    topic_text.move_to([topic_x, topic_y, 0])
     return topic_text
 
 
 def _build_pinyin(cfg, colors, font):
-    """构建拼音行（位置由 Scene 动态控制）"""
+    """构建拼音行"""
     brand_cfg = cfg.get("brand", {})
     pinyin = brand_cfg.get("pinyin", "")
     pinyin_text = Text(
         pinyin,
         font=font, font_size=16, color=colors["pinyin"],
     )
-    pinyin_text.move_to(UP * 1.8)
+    # 显式定位：仅当 layout.positions 中有覆盖时才定位（flow_layout=true 元素）
+    if is_explicitly_positioned(cfg, "pinyin_text"):
+        pos = get_element_position(cfg, "pinyin_text", config.frame_width, config.frame_height)
+        pinyin_text.move_to([pos[0], pos[1], 0])
+        pinyin_text._has_explicit_position = True
+    else:
+        pinyin_text._has_explicit_position = False
     return pinyin_text
 
 
@@ -244,19 +365,22 @@ def _build_disclaimer(cfg, colors, font):
         font=font, font_size=14, color=colors["muted"],
         line_spacing=1.2,
     )
-    text.move_to(RIGHT * 3.3 + DOWN * 4.0)
+    # 从配置读取位置，回退到硬编码值
+    disclaimer_x, disclaimer_y = get_element_position(cfg, "disclaimer", config.frame_width, config.frame_height,
+                                                       fallback_fn=lambda: (2.5, -3.8))
+    text.move_to([disclaimer_x, disclaimer_y, 0])
     return text
 
 
 def _build_footer_bar(cfg, colors, font):
-    """构建黑色底栏 + 白色标签"""
+    """构建底栏 + 标签"""
     brand_cfg = cfg.get("brand", {})
     tags_lines = brand_cfg.get("footer_tags", [
         "强者思维 ｜ 认知进化 ｜ 深度思考",
         "内核重构 ｜ 心智跃迁 ｜ 底层逻辑",
     ])
 
-    # 底栏背景（紧贴画面底部）
+    # 底栏背景
     BAR_H = 1.0
     bar = Rectangle(
         width=config.frame_width + 1,
@@ -264,7 +388,10 @@ def _build_footer_bar(cfg, colors, font):
         fill_color=colors["bar_bg"], fill_opacity=1,
         stroke_width=0,
     )
-    bar.move_to(DOWN * (config.frame_height / 2 - BAR_H / 2))
+    # 从配置读取位置，回退到硬编码值
+    bar_x, bar_y = get_element_position(cfg, "footer_bar", config.frame_width, config.frame_height,
+                                         fallback_fn=lambda: (0, -4.8))
+    bar.move_to([bar_x, bar_y, 0])
 
     tag_texts = VGroup()
     for line in tags_lines:
@@ -286,6 +413,7 @@ class Scene01_Cards(Scene):
         cfg = _load_config()
         colors = _get_colors(cfg)
         font = _get_font(cfg)
+        font_size = _get_font_size(cfg)
         wrap_chars = _get_wrap_chars(cfg)
         illus_size = _get_illustration_size(cfg)
 
@@ -337,7 +465,7 @@ class Scene01_Cards(Scene):
             title = Text(
                 _wrap_chinese(sentence, wrap_chars),
                 font=font,
-                font_size=44,
+                font_size=font_size,
                 color=colors["text"],
                 weight=BOLD,
                 line_spacing=1.0,
@@ -348,8 +476,9 @@ class Scene01_Cards(Scene):
             title.next_to(topic_line, DOWN, buff=0.5)
             title.set_x(0)
 
-            # 拼音动态跟随主文字下方（紧凑间距）
-            pinyin.next_to(title, DOWN, buff=0.3)
+            # 拼音：有显式位置配置时尊重配置，否则动态跟随主文字下方
+            if not getattr(pinyin, '_has_explicit_position', False):
+                pinyin.next_to(title, DOWN, buff=0.3)
 
             # 判断是否需要换图
             kw = keywords[i] if i < len(keywords) else None
@@ -357,15 +486,18 @@ class Scene01_Cards(Scene):
 
             illus = None
             if need_new_illus:
-                img_path = _load_illustration(kw)
-                if img_path:
-                    illus = ImageMobject(img_path)
-                    illus.scale_to_fit_width(illus_size)
-                    if illus.height > 3.0:
-                        illus.scale_to_fit_height(3.0)
-                    # 插画紧跟拼音下方，动态定位
-                    illus.next_to(pinyin, DOWN, buff=0.4)
-                    illus.set_x(0)
+                illus = _build_illustration(kw, cfg, colors, font, illus_size)
+                if illus is not None:
+                    # 显式定位：仅当 layout.positions 中有覆盖时才定位（flow_layout=true 元素）
+                    illus_pos = get_element_position(
+                        cfg, "illustration", config.frame_width, config.frame_height
+                    )
+                    if illus_pos is not None:
+                        illus.move_to([illus_pos[0], illus_pos[1], 0])
+                    else:
+                        # 动态定位：紧跟拼音下方
+                        illus.next_to(pinyin, DOWN, buff=0.4)
+                        illus.set_x(0)
 
             # ── 动画：文字直接切换，插画仅在关键词变化时滑动 ──
             if prev_title is not None:

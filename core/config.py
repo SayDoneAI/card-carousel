@@ -10,6 +10,8 @@ import os
 import yaml
 from dotenv import load_dotenv
 
+from core.utils import sanitize_positions
+
 
 def _load_env(project_dir: str) -> None:
     """加载项目根目录的 .env 文件（如果存在）"""
@@ -19,12 +21,19 @@ def _load_env(project_dir: str) -> None:
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
-    """递归合并：override 中的值覆盖 base，返回新 dict"""
+    """
+    递归合并：override 中的值覆盖 base，返回新 dict
+
+    特殊处理：
+    - None 值会覆盖 base 中的值（用于清空模板默认值）
+    - 嵌套 dict 递归合并
+    """
     result = dict(base)
     for key, val in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(val, dict):
             result[key] = _deep_merge(result[key], val)
         else:
+            # 允许 None 覆盖，实现清空语义
             result[key] = val
     return result
 
@@ -57,6 +66,14 @@ def _apply_template(cfg: dict, project_dir: str) -> dict:
     # 自动设置 manim_script 指向模板 scene.py
     if "manim_script" not in cfg:
         merged["manim_script"] = tmpl.get_manim_script()
+
+    # pixel_height 由模板固定（真相源唯一）：忽略用户 config 中的覆盖，
+    # 确保渲染路径与模板实际输出目录严格一致
+    template_pixel_height = defaults.get("layout", {}).get("pixel_height")
+    if template_pixel_height is not None:
+        if not isinstance(merged.get("layout"), dict):
+            merged["layout"] = {}
+        merged["layout"]["pixel_height"] = template_pixel_height
 
     return merged
 
@@ -103,6 +120,15 @@ def load_config(path: str) -> dict:
         cfg["_project_dir"] = project_dir
         cfg["_config_path"] = config_path
 
+    # 归一化 layout：确保为 dict（null/缺失都归为 {}）
+    if not isinstance(cfg.get("layout"), dict):
+        cfg["layout"] = {}
+
+    # 清洗 layout.positions：过滤掉 x/y 缺失或非数值的非法条目
+    raw_positions = cfg["layout"].get("positions")
+    if raw_positions is not None:
+        cfg["layout"]["positions"] = sanitize_positions(raw_positions)
+
     cfg.setdefault("render_quality", "l")
     cfg.setdefault("output", {})
     cfg["output"].setdefault("speed", 1.0)
@@ -118,7 +144,19 @@ def load_config(path: str) -> dict:
 
     cfg.setdefault("illustrations", {})
     layout_cfg = cfg.get("layout")
-    if layout_cfg is not None:
+    if layout_cfg:
+        # 向后兼容：旧配置可能只有 layout 但缺少 pixel_height
+        layout_cfg.setdefault("pixel_height", 1440)
+        pixel_height = layout_cfg.get("pixel_height")
+        if not (
+            isinstance(pixel_height, int)
+            and not isinstance(pixel_height, bool)
+            and pixel_height > 0
+        ):
+            raise ValueError(
+                f"layout.pixel_height 必须为正整数，当前值: {pixel_height!r}"
+            )
+
         wrap_chars = layout_cfg.get("wrap_chars")
         if not (
             isinstance(wrap_chars, int)
@@ -144,8 +182,9 @@ def load_config(path: str) -> dict:
         if max_chars_per_card != expected_max_chars:
             print(
                 "警告: layout.max_chars_per_card="
-                f"{max_chars_per_card} 与 layout.wrap_chars*2={expected_max_chars} 不一致"
+                f"{max_chars_per_card} 与 layout.wrap_chars*2={expected_max_chars} 不一致，已强制修正"
             )
+            layout_cfg["max_chars_per_card"] = expected_max_chars
 
     # ── 路径安全校验 ──
     # manim_script 必须在项目目录内
@@ -163,9 +202,15 @@ def load_config(path: str) -> dict:
     cfg["_audio_dir"] = os.path.join(media_base, "audio")
     cfg["_timing_file"] = os.path.join(media_base, "_timing.json")
 
-    # Manim 按像素高度命名目录: 1440p15 对应 1080x1440 竖屏
-    q_map = {"l": "1440p15", "m": "1440p30", "h": "1440p60"}
-    quality_dir = q_map.get(cfg["render_quality"], "1440p15")
+    # Manim 按 {像素高度}p{fps} 命名渲染目录（如 1440p15、1920p15）
+    # 不同模板分辨率不同，自动检测实际目录而非硬编码
+    layout_val = cfg.get("layout")
+    if not isinstance(layout_val, dict):
+        layout_val = {}
+    pixel_height = layout_val.get("pixel_height", 1440)
+    fps_map = {"l": 15, "m": 30, "h": 60}
+    fps = fps_map.get(cfg["render_quality"], 15)
+    quality_dir = f"{pixel_height}p{fps}"
     cfg["_render_dir"] = os.path.join(media_base, quality_dir)
     cfg["_voiced_dir"] = os.path.join(media_base, "voiced")
 

@@ -3,10 +3,12 @@ description: "人像笔记本 — 真人照片背景 + 速写本插画 + 字幕"
 
 layout:
   font: "PingFang SC"
+  pixel_height: 1920
   wrap_chars: 12
   max_chars_per_card: 24
   illustration_size: 5.0
   portrait_image: "assets/huangfu.png"
+  font_size: 32
   colors:
     bg: "#000000"
     text: "#FFFFFF"
@@ -23,3 +25,36 @@ brand_defaults:
   pinyin: ""
   disclaimer: ""
   footer_tags: []
+
+positionable_elements:
+  - id: "topic"
+    label: "主题标题"
+    default_x: 50.0
+    default_y: 34.5
+    min_x: 0
+    max_x: 100
+    min_y: 10
+    max_y: 40
+    step: 0.5
+
+  - id: "illustration"
+    label: "笔记本插画"
+    default_x: 50.0
+    default_y: 50.0
+    min_x: 0
+    max_x: 100
+    min_y: 35
+    max_y: 65
+    step: 1.0
+    flow_layout: true
+
+  - id: "subtitle"
+    label: "副标题"
+    default_x: 50.0
+    default_y: 69.4
+    min_x: 0
+    max_x: 100
+    min_y: 60
+    max_y: 80
+    step: 0.5
+    flow_layout: true

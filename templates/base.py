@@ -22,3 +22,25 @@ class BaseTemplate(ABC):
     def get_scene_classes(self) -> list[str]:
         """返回 Manim 场景类名列表"""
         ...
+
+    def get_positionable_elements(self) -> list[dict]:
+        """
+        返回模板可调整位置的元素元数据列表。
+
+        每个元素字典包含：
+        - id: 元素唯一标识符
+        - label: 用户友好的显示名称
+        - default_x: 默认 X 坐标百分比 (0-100)
+        - default_y: 默认 Y 坐标百分比 (0-100)
+        - min_x: X 坐标最小值百分比
+        - max_x: X 坐标最大值百分比
+        - min_y: Y 坐标最小值百分比
+        - max_y: Y 坐标最大值百分比
+        - step: 调整步长（可选，默认 1）
+
+        坐标系统：百分比坐标，左上角 (0%, 0%)，右下角 (100%, 100%)
+
+        Returns:
+            元素元数据列表，默认返回空列表（向后兼容）
+        """
+        return []
