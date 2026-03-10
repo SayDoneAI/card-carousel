@@ -1,11 +1,15 @@
 name: minimal-insight
 description: "极简洞见 — 竖屏白底大字卡片 + 水墨插画 + 底栏标签"
 
+canvas:
+  pixel_width: 1080
+  pixel_height: 1440
+
 layout:
   font: "PingFang SC"
-  pixel_height: 1440
   wrap_chars: 9
   max_chars_per_card: 18
+  pixel_height: 1440
   illustration_size: 4.0
   font_size: 44
   colors:
@@ -27,76 +31,128 @@ brand_defaults:
     - "强者思维 ｜ 认知进化 ｜ 深度思考"
     - "内核重构 ｜ 心智跃迁 ｜ 底层逻辑"
 
+color_palettes:
+  - name: "经典黑白"
+    colors: { bg: "#FFFFFF", text: "#000000", accent: "#C0392B", pinyin: "#000000", muted: "#999999", bar_bg: "#DBDADB", bar_text: "#1A1A1A" }
+  - name: "深色模式"
+    colors: { bg: "#1A1A1A", text: "#FFFFFF", accent: "#3B82F6", pinyin: "#E5E7EB", muted: "#6B7280", bar_bg: "#374151", bar_text: "#F9FAFB" }
+  - name: "温暖米色"
+    colors: { bg: "#F5F1E8", text: "#2C2416", accent: "#D97706", pinyin: "#78716C", muted: "#A8A29E", bar_bg: "#E7E5E4", bar_text: "#44403C" }
+  - name: "清新绿"
+    colors: { bg: "#F0FDF4", text: "#14532D", accent: "#10B981", pinyin: "#047857", muted: "#9CA3AF", bar_bg: "#D1FAE5", bar_text: "#065F46" }
+  - name: "优雅紫"
+    colors: { bg: "#FAF5FF", text: "#4C1D95", accent: "#8B5CF6", pinyin: "#7C3AED", muted: "#A78BFA", bar_bg: "#EDE9FE", bar_text: "#5B21B6" }
+
 positionable_elements:
   - id: "logo"
+    type: "logo"
     label: "Logo 圆圈"
     default_x: 10.0
     default_y: 7.8
     min_x: 0
-    max_x: 30
+    max_x: 100
     min_y: 0
-    max_y: 20
-    step: 0.5
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "logo_char", label: "Logo 文字" }
+    color_fields:
+      - { key: "text", label: "Logo 颜色" }
 
   - id: "author_name"
+    type: "text"
     label: "作者名"
     default_x: 27.5
     default_y: 7.8
-    min_x: 10
-    max_x: 50
+    min_x: 0
+    max_x: 100
     min_y: 0
-    max_y: 20
-    step: 0.5
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "author", label: "作者名" }
+    font_size_override: 20
 
   - id: "topic_text"
+    type: "text"
     label: "主题句"
     default_x: 50.0
     default_y: 17.2
     min_x: 0
     max_x: 100
-    min_y: 5
-    max_y: 30
-    step: 0.5
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "topic", label: "主题文字" }
+    color_fields:
+      - { key: "accent", label: "主题颜色" }
 
   - id: "pinyin_text"
+    type: "text"
     label: "拼音"
     default_x: 50.0
     default_y: 32.0
     min_x: 0
     max_x: 100
-    min_y: 15
-    max_y: 40
-    step: 0.5
+    min_y: 0
+    max_y: 100
+    step: 1.0
     flow_layout: true
+    brand_field: { key: "pinyin", label: "拼音文字" }
+    color_fields:
+      - { key: "pinyin", label: "拼音颜色" }
+    font_size_override: 16
 
   - id: "illustration"
+    type: "illustration"
     label: "插画"
     default_x: 50.0
     default_y: 55.0
     min_x: 0
     max_x: 100
-    min_y: 40
-    max_y: 80
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    flow_layout: true
+    extra_fields:
+      - { type: "slider", key: "layout.illustration_size", label: "插画大小", min: 2.0, max: 8.0, step: 0.5 }
+
+  - id: "caption"
+    type: "caption"
+    label: "字幕"
+    default_x: 50.0
+    default_y: 75.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
     step: 1.0
     flow_layout: true
 
   - id: "disclaimer"
+    type: "text"
     label: "免责声明"
     default_x: 81.2
     default_y: 85.6
-    min_x: 50
+    min_x: 0
     max_x: 100
-    min_y: 70
-    max_y: 95
-    step: 0.5
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "disclaimer", label: "免责文字", multiline: true }
+    color_fields:
+      - { key: "muted", label: "免责颜色" }
+    font_size_override: 14
 
   - id: "footer_bar"
+    type: "bar"
     label: "底栏背景"
     default_x: 50.0
     default_y: 95.0
     min_x: 0
     max_x: 100
-    min_y: 90
+    min_y: 0
     max_y: 100
-    step: 0.5
-
+    step: 1.0
+    color_fields:
+      - { key: "bar_bg", label: "底栏背景色" }
+      - { key: "bar_text", label: "底栏文字色" }
+    has_footer_tags: true

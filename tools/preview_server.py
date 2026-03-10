@@ -548,9 +548,20 @@ def _write_temp_yaml(template: str, params: dict) -> str:
     if "footer_tags" in params:
         cfg.setdefault("brand", {})["footer_tags"] = params["footer_tags"]
 
-    # pixel_height 由模板固定，忽略前端传入，确保 _render_dir 与模板实际输出一致
+    # 画布尺寸：优先 canvas（新模式），回退 layout.pixel_height（旧模式）
     layout = cfg.setdefault("layout", {})
-    layout["pixel_height"] = default_pixel_height
+    canvas_params = params.get("canvas")
+    if isinstance(canvas_params, dict) and canvas_params.get("pixel_height"):
+        cfg["canvas"] = canvas_params
+        layout["pixel_height"] = canvas_params.get("pixel_height", default_pixel_height)
+    else:
+        # 从模板 defaults 的 canvas 中读取
+        default_canvas = template_defaults.get("canvas", {})
+        if default_canvas:
+            cfg["canvas"] = default_canvas
+            layout["pixel_height"] = default_canvas.get("pixel_height", default_pixel_height)
+        else:
+            layout["pixel_height"] = default_pixel_height
 
     # 需要给 config.py 的校验提供合法的 layout 字段
     if "wrap_chars" not in layout:
@@ -950,12 +961,18 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 self._send_error_json(404, f"模板不存在: {template_id}")
                 return
 
-            # 获取可定位元素元数据
-            elements = template_obj.get_positionable_elements()
-            self._send_json(200, {
+            # 获取可定位元素元数据 + 配色方案 + 画布
+            defaults = template_obj.get_default_config()
+            elements = defaults.get("positionable_elements", [])
+            response = {
                 "template": template_id,
                 "positionable_elements": elements,
-            })
+            }
+            if "color_palettes" in defaults:
+                response["color_palettes"] = defaults["color_palettes"]
+            if "canvas" in defaults:
+                response["canvas"] = defaults["canvas"]
+            self._send_json(200, response)
         except ValueError as exc:
             log.warning("template_manifest 参数错误: %s", exc)
             self._send_error_json(400, _client_error_message("参数错误", exc))

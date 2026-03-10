@@ -125,6 +125,8 @@ class TestTemplateManifestBounds:
         """所有元素的 default_x 必须在 [min_x, max_x] 范围内"""
         for template_name, elem in self._get_all_elements():
             elem_id = elem.get("id", "?")
+            if elem.get("fixed"):
+                continue
             default_x = elem["default_x"]
             min_x = elem["min_x"]
             max_x = elem["max_x"]
@@ -137,6 +139,8 @@ class TestTemplateManifestBounds:
         """所有元素的 default_y 必须在 [min_y, max_y] 范围内"""
         for template_name, elem in self._get_all_elements():
             elem_id = elem.get("id", "?")
+            if elem.get("fixed"):
+                continue
             default_y = elem["default_y"]
             min_y = elem["min_y"]
             max_y = elem["max_y"]

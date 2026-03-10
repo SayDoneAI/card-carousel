@@ -1,12 +1,16 @@
 name: portrait-notebook
-description: "人像笔记本 — 真人照片背景 + 速写本插画 + 字幕"
+description: "人像卡片 — 真人照片背景 + AI插画 + 字幕"
+
+canvas:
+  pixel_width: 1080
+  pixel_height: 1920
 
 layout:
   font: "PingFang SC"
-  pixel_height: 1920
   wrap_chars: 12
   max_chars_per_card: 24
-  illustration_size: 5.0
+  pixel_height: 1920
+  illustration_size: 7.0
   portrait_image: "assets/huangfu.png"
   font_size: 32
   colors:
@@ -14,47 +18,93 @@ layout:
     text: "#FFFFFF"
     accent: "#FF6B35"
     subtitle: "#FF6B35"
-    notebook_bg: "#F5F0E8"
-    notebook_spiral: "#888888"
 
 brand_defaults:
-  logo_char: "赋"
-  author: "@黄赋"
   topic: "AI生存指南 ①（企业篇）"
   subtitle: "企业人工智能转型三个目标"
-  pinyin: ""
-  disclaimer: ""
-  footer_tags: []
+
+color_palettes:
+  - name: "经典黑橙"
+    colors: { bg: "#000000", text: "#FFFFFF", accent: "#FF6B35", subtitle: "#FF6B35" }
+  - name: "深蓝冷调"
+    colors: { bg: "#0A192F", text: "#E6F1FF", accent: "#64FFDA", subtitle: "#64FFDA" }
+  - name: "暗紫"
+    colors: { bg: "#1A0A2E", text: "#FFFFFF", accent: "#A855F7", subtitle: "#A855F7" }
+  - name: "纯白"
+    colors: { bg: "#FFFFFF", text: "#1A1A1A", accent: "#FF6B35", subtitle: "#FF6B35" }
+  - name: "温暖米色"
+    colors: { bg: "#F5F1E8", text: "#2C2416", accent: "#D97706", subtitle: "#D97706" }
 
 positionable_elements:
+  - id: "portrait"
+    type: "image"
+    label: "人像背景"
+    source: "layout.portrait_image"
+    width: "full"
+    anchor: "top"
+    fixed: true
+    default_x: 50.0
+    default_y: 50.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
+    step: 1.0
+
   - id: "topic"
+    type: "text"
     label: "主题标题"
     default_x: 50.0
     default_y: 34.5
     min_x: 0
     max_x: 100
-    min_y: 10
-    max_y: 40
-    step: 0.5
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "topic", label: "主题文字" }
+    color_fields:
+      - { key: "accent", label: "主题颜色" }
+    font_size_override: 44
+    weight: "bold"
 
   - id: "illustration"
-    label: "笔记本插画"
+    type: "illustration"
+    label: "插画"
     default_x: 50.0
-    default_y: 50.0
+    default_y: 52.0
     min_x: 0
     max_x: 100
-    min_y: 35
-    max_y: 65
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    flow_layout: true
+    extra_fields:
+      - { type: "slider", key: "layout.illustration_size", label: "插画大小", min: 3.0, max: 9.0, step: 0.5 }
+
+  - id: "caption"
+    type: "caption"
+    label: "字幕"
+    default_x: 50.0
+    default_y: 65.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
     step: 1.0
     flow_layout: true
 
   - id: "subtitle"
+    type: "text"
     label: "副标题"
     default_x: 50.0
-    default_y: 69.4
+    default_y: 72.0
     min_x: 0
     max_x: 100
-    min_y: 60
-    max_y: 80
-    step: 0.5
+    min_y: 0
+    max_y: 100
+    step: 1.0
     flow_layout: true
+    brand_field: { key: "subtitle", label: "副标题文字" }
+    color_fields:
+      - { key: "subtitle", label: "副标题颜色" }
+    font_size_override: 28

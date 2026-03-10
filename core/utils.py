@@ -152,8 +152,8 @@ def get_element_position(
     """三层优先级解析元素位置（百分比 → Manim 坐标）：
 
     Level 3（最高）: layout.positions[element_id] 存在 → 用覆盖坐标
-    Level 2: positionable_elements[id].default_x/y，flow_layout=false → 用模板默认坐标
-    Level 1（最低）: flow_layout=true 且无覆盖 → 调用 fallback_fn() 或返回 None
+    Level 2: positionable_elements[id].default_x/y → 用模板默认坐标
+    Level 1（最低）: 无 default_x/y → 调用 fallback_fn() 或返回 None
                     （None 表示调用方应使用 next_to 等相对布局）
 
     向后兼容：positionable_elements 为空时调用 fallback_fn() 或返回 None。
@@ -170,9 +170,6 @@ def get_element_position(
     for elem in config.get("positionable_elements", []):
         if elem.get("id") != element_id:
             continue
-        if elem.get("flow_layout", False):
-            # 流式布局：无覆盖时不参与绝对定位
-            return fallback_fn() if fallback_fn is not None else None
         dx = elem.get("default_x")
         dy = elem.get("default_y")
         if dx is not None and dy is not None:

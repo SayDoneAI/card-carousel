@@ -68,12 +68,23 @@ def _apply_template(cfg: dict, project_dir: str) -> dict:
         merged["manim_script"] = tmpl.get_manim_script()
 
     # pixel_height 由模板固定（真相源唯一）：忽略用户 config 中的覆盖，
-    # 确保渲染路径与模板实际输出目录严格一致
+    # 但若 canvas 指定了尺寸（预览编辑器），以 canvas 为准以保持渲染目录一致
     template_pixel_height = defaults.get("layout", {}).get("pixel_height")
     if template_pixel_height is not None:
         if not isinstance(merged.get("layout"), dict):
             merged["layout"] = {}
         merged["layout"]["pixel_height"] = template_pixel_height
+
+    canvas = merged.get("canvas", {})
+    if isinstance(canvas, dict):
+        if "pixel_height" in canvas:
+            if not isinstance(merged.get("layout"), dict):
+                merged["layout"] = {}
+            merged["layout"]["pixel_height"] = canvas["pixel_height"]
+        if "pixel_width" in canvas:
+            if not isinstance(merged.get("layout"), dict):
+                merged["layout"] = {}
+            merged["layout"]["pixel_width"] = canvas["pixel_width"]
 
     return merged
 

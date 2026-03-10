@@ -183,24 +183,16 @@ class TestGetElementPosition:
         expected = percent_to_manim(20.0, 10.0, W, H)
         assert result == pytest.approx(expected)
 
-    def test_flow_layout_true_returns_none_without_override(self):
-        """flow_layout=true 且无 layout.positions → 返回 None"""
+    def test_flow_layout_true_uses_default_xy(self):
+        """flow_layout=true 且无 layout.positions → 使用 default_x/y"""
         cfg = {
             "positionable_elements": [
                 {"id": "pinyin_text", "default_x": 50.0, "default_y": 32.0, "flow_layout": True}
             ]
         }
-        assert get_element_position(cfg, "pinyin_text", W, H) is None
-
-    def test_flow_layout_true_calls_fallback_fn(self):
-        """flow_layout=true 且无 layout.positions → 调用 fallback_fn"""
-        cfg = {
-            "positionable_elements": [
-                {"id": "pinyin_text", "default_x": 50.0, "default_y": 32.0, "flow_layout": True}
-            ]
-        }
-        result = get_element_position(cfg, "pinyin_text", W, H, fallback_fn=lambda: (0, 2.0))
-        assert result == (0, 2.0)
+        result = get_element_position(cfg, "pinyin_text", W, H)
+        expected = percent_to_manim(50.0, 32.0, W, H)
+        assert result == pytest.approx(expected)
 
     def test_flow_layout_true_overridden_by_layout_positions(self):
         """flow_layout=true 但 layout.positions 有覆盖 → 使用覆盖坐标"""

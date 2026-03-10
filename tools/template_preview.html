@@ -687,18 +687,18 @@
     const templateManifestCache = {};
     const INTEGER_LAYOUT_FIELDS = new Set(['layout.pixel_height', 'layout.wrap_chars', 'layout.max_chars_per_card']);
 
-    // 一键配色方案
+    // 一键配色方案（7 色：bg, text, accent, pinyin, muted, bar_bg, bar_text）
     const COLOR_PALETTES = [
-      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#000000', accent: '#C0392B' } },
-      { name: '深色模式', colors: { bg: '#1A1A1A', text: '#FFFFFF', accent: '#3B82F6' } },
-      { name: '温暖米色', colors: { bg: '#F5F1E8', text: '#2C2416', accent: '#D97706' } },
-      { name: '清新绿', colors: { bg: '#F0FDF4', text: '#14532D', accent: '#10B981' } },
-      { name: '优雅紫', colors: { bg: '#FAF5FF', text: '#4C1D95', accent: '#8B5CF6' } },
-      { name: '科技蓝', colors: { bg: '#EFF6FF', text: '#1E3A8A', accent: '#2563EB' } },
-      { name: '暖橙', colors: { bg: '#FFF7ED', text: '#7C2D12', accent: '#EA580C' } },
-      { name: '冷灰', colors: { bg: '#F8FAFC', text: '#0F172A', accent: '#64748B' } },
-      { name: '粉红', colors: { bg: '#FDF2F8', text: '#831843', accent: '#EC4899' } },
-      { name: '青色', colors: { bg: '#ECFEFF', text: '#164E63', accent: '#06B6D4' } }
+      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#000000', accent: '#C0392B', pinyin: '#000000', muted: '#999999', bar_bg: '#DBDADB', bar_text: '#1A1A1A' } },
+      { name: '深色模式', colors: { bg: '#1A1A1A', text: '#FFFFFF', accent: '#3B82F6', pinyin: '#E5E7EB', muted: '#6B7280', bar_bg: '#374151', bar_text: '#F9FAFB' } },
+      { name: '温暖米色', colors: { bg: '#F5F1E8', text: '#2C2416', accent: '#D97706', pinyin: '#78716C', muted: '#A8A29E', bar_bg: '#E7E5E4', bar_text: '#44403C' } },
+      { name: '清新绿', colors: { bg: '#F0FDF4', text: '#14532D', accent: '#10B981', pinyin: '#047857', muted: '#9CA3AF', bar_bg: '#D1FAE5', bar_text: '#065F46' } },
+      { name: '优雅紫', colors: { bg: '#FAF5FF', text: '#4C1D95', accent: '#8B5CF6', pinyin: '#7C3AED', muted: '#A78BFA', bar_bg: '#EDE9FE', bar_text: '#5B21B6' } },
+      { name: '科技蓝', colors: { bg: '#EFF6FF', text: '#1E3A8A', accent: '#2563EB', pinyin: '#1D4ED8', muted: '#93C5FD', bar_bg: '#DBEAFE', bar_text: '#1E40AF' } },
+      { name: '暖橙', colors: { bg: '#FFF7ED', text: '#7C2D12', accent: '#EA580C', pinyin: '#C2410C', muted: '#FDBA74', bar_bg: '#FED7AA', bar_text: '#9A3412' } },
+      { name: '冷灰', colors: { bg: '#F8FAFC', text: '#0F172A', accent: '#64748B', pinyin: '#475569', muted: '#94A3B8', bar_bg: '#E2E8F0', bar_text: '#334155' } },
+      { name: '粉红', colors: { bg: '#FDF2F8', text: '#831843', accent: '#EC4899', pinyin: '#DB2777', muted: '#F9A8D4', bar_bg: '#FCE7F3', bar_text: '#9D174D' } },
+      { name: '青色', colors: { bg: '#ECFEFF', text: '#164E63', accent: '#06B6D4', pinyin: '#0891B2', muted: '#67E8F9', bar_bg: '#CFFAFE', bar_text: '#155E75' } }
     ];
 
 
@@ -799,14 +799,16 @@
         await loadTemplateManifest(currentTemplate);
         renderParamPanel();
         clearPreview();
+        scheduleRender();
       });
 
       ui.renderBtn.addEventListener('click', scheduleRender);
       ui.resetBtn.addEventListener('click', resetToDefaults);
 
-      // 尝试加载已有视频帧
+      // 尝试加载已有视频帧（即使加载成功，也在首次打开时触发一次渲染）
+      await loadExistingFrame();
       if (previewServerAvailable) {
-        await loadExistingFrame();
+        scheduleRender();
       }
     }
 
@@ -839,7 +841,7 @@
       }
     }
 
-    // 从 /api/template_manifest 获取 positionable_elements
+    // 从 /api/template_manifest 获取完整 manifest（元素、配色、画布）
     async function fetchTemplateManifest(template) {
       if (templateManifestCache[template]) {
         return templateManifestCache[template];
@@ -849,20 +851,33 @@
         throw new Error(`HTTP ${resp.status}`);
       }
       const payload = await resp.json();
-      const elements = (payload && Array.isArray(payload.positionable_elements))
-        ? payload.positionable_elements
-        : [];
-      templateManifestCache[template] = elements;
-      return elements;
+      const manifest = {
+        elements: (payload && Array.isArray(payload.positionable_elements))
+          ? payload.positionable_elements
+          : [],
+        color_palettes: (payload && Array.isArray(payload.color_palettes))
+          ? payload.color_palettes
+          : null,
+        canvas: (payload && payload.canvas) ? payload.canvas : null,
+      };
+      templateManifestCache[template] = manifest;
+      return manifest;
     }
 
     // 加载模板的位置元数据，更新 currentManifestElements
+    let currentManifestColorPalettes = null;  // 模板自带配色方案
+    let currentManifestCanvas = null;         // 模板画布配置
     async function loadTemplateManifest(template) {
       try {
-        currentManifestElements = await fetchTemplateManifest(template);
+        const manifest = await fetchTemplateManifest(template);
+        currentManifestElements = manifest.elements;
+        currentManifestColorPalettes = manifest.color_palettes;
+        currentManifestCanvas = manifest.canvas;
       } catch (e) {
         console.warn('加载模板 manifest 失败:', e);
         currentManifestElements = [];
+        currentManifestColorPalettes = null;
+        currentManifestCanvas = null;
       }
       // 初始化 positions：只保留仍在 manifest 中的元素
       if (!currentParams.positions || typeof currentParams.positions !== 'object') {
@@ -896,6 +911,12 @@
         params.brand.footer_tags = [...params.footer_tags];
       }
       delete params.footer_tags;
+      // 兼容旧版存储：把字面量 \\n 还原为真实换行
+      for (const [key, value] of Object.entries(params.brand)) {
+        if (typeof value === 'string' && value.includes('\\n')) {
+          params.brand[key] = value.replace(/\\n/g, '\n');
+        }
+      }
 
       if (!params.layout || typeof params.layout !== 'object' || Array.isArray(params.layout)) {
         params.layout = {};
@@ -907,6 +928,12 @@
         }
         params.positions = { ...params.layout.positions, ...params.positions };
         delete params.layout.positions;
+      }
+      // canvas 字段初始化
+      if (params.canvas && typeof params.canvas === 'object' && !Array.isArray(params.canvas)) {
+        // 保持已有的 canvas
+      } else {
+        params.canvas = {};
       }
       if (!params.layout.colors || typeof params.layout.colors !== 'object' || Array.isArray(params.layout.colors)) {
         params.layout.colors = {};
@@ -1060,7 +1087,7 @@
       }
     }
 
-    // 渲染参数面板
+    // 渲染参数面板（按元素聚合）
     function renderParamPanel() {
       ui.panelBody.replaceChildren();
       if (!previewServerAvailable) {
@@ -1071,54 +1098,208 @@
         return;
       }
 
-      // 1. 卡片内容（文字 + 字体大小 + 文字颜色）
+      // 1. 卡片内容（文字 textarea）
       ui.panelBody.appendChild(renderContentSection());
 
-      // 2. 样式调整（插画大小 + 每行字数自动计算）
+      // 2. 文字样式（文字大小 + 文字颜色 + 每行字数只读）
       ui.panelBody.appendChild(renderStyleSection());
 
-      // 3. 元素位置调整（如果模板有 positionable_elements）
-      ui.panelBody.appendChild(renderPositionSection());
+      // 3. 按元素聚合区块：遍历 manifest 元素，每个生成一个折叠卡片
+      if (currentManifestElements && currentManifestElements.length > 0) {
+        currentManifestElements.forEach(el => {
+          ui.panelBody.appendChild(renderElementSection(el));
+        });
+      }
 
-      // 4. 品牌
-      const brandFields = Object.keys(currentParams.brand)
-        .filter((key) => isScalarValue(currentParams.brand[key]))
-        .map((key) => ({
-          label: key,
-          key: `brand.${key}`,
-          type: 'text'
-        }));
-      const brandSection = createSection('品牌', brandFields);
-      ui.panelBody.appendChild(brandSection);
+      // 4. 显示未被元素声明关联的品牌字段（通用兜底）
+      const mappedBrandKeys = new Set();
+      currentManifestElements.forEach(el => {
+        if (el.brand_field && el.brand_field.key) {
+          mappedBrandKeys.add(el.brand_field.key);
+        }
+      });
+      mappedBrandKeys.add('footer_tags'); // footer_tags 在 footer_bar 元素中处理
+      const unmappedBrandFields = Object.keys(currentParams.brand)
+        .filter(key => isScalarValue(currentParams.brand[key]) && !mappedBrandKeys.has(key))
+        .map(key => ({ label: key, key: `brand.${key}`, type: 'text' }));
+      if (unmappedBrandFields.length > 0) {
+        ui.panelBody.appendChild(createSection('其他品牌参数', unmappedBrandFields));
+      }
 
-      // 5. 底栏标签
-      const footerTags = getFooterTags();
-      if (footerTags.length > 0 || Object.prototype.hasOwnProperty.call(currentParams.brand, 'footer_tags')) {
-        const tagsSection = createSection('底栏标签', []);
+      // 5. 动画效果
+      ui.panelBody.appendChild(renderAnimationSection());
+
+      // 6. 背景 & 一键配色
+      ui.panelBody.appendChild(renderBackgroundAndPaletteSection());
+    }
+
+    // ── 单个元素聚合区块 ──────────────────────────────────────────────────────
+    function renderElementSection(el) {
+      // 映射关系直接从 manifest 元素声明中读取（defaults.yaml 定义）
+      const mapping = {
+        brand_field: el.brand_field || null,
+        color_fields: el.color_fields || [],
+        extra_fields: el.extra_fields || [],
+        has_footer_tags: el.has_footer_tags || false
+      };
+      const section = document.createElement('div');
+      section.className = 'section';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = `📍 ${el.label || el.id}`;
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      // 品牌字段（文字输入，支持多行）
+      if (mapping.brand_field) {
+        const bf = mapping.brand_field;
+        const row = document.createElement('div');
+        row.className = 'param-row';
+        const label = document.createElement('div');
+        label.className = 'param-label';
+        label.textContent = bf.label;
+        const inputContainer = document.createElement('div');
+        inputContainer.className = 'param-input';
+
+        if (bf.multiline) {
+          const textarea = document.createElement('textarea');
+          textarea.className = 'card-narration';
+          textarea.style.minHeight = '50px';
+          // 把 \n 转为真实换行显示
+          const raw = currentParams.brand[bf.key] || '';
+          textarea.value = raw.replace(/\\n/g, '\n');
+          textarea.addEventListener('input', (e) => {
+            // 保留真实换行（兼容 server-side YAML 处理）
+            currentParams.brand[bf.key] = e.target.value;
+            saveParams();
+          });
+          inputContainer.appendChild(textarea);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = currentParams.brand[bf.key] || '';
+          input.addEventListener('input', (e) => {
+            currentParams.brand[bf.key] = e.target.value;
+            saveParams();
+          });
+          inputContainer.appendChild(input);
+        }
+
+        row.appendChild(label);
+        row.appendChild(inputContainer);
+        content.appendChild(row);
+      }
+
+      // 颜色字段
+      (mapping.color_fields || []).forEach(cf => {
+        const colorVal = currentParams.layout.colors[cf.key] || '#000000';
+        const row = document.createElement('div');
+        row.className = 'param-row';
+        const label = document.createElement('div');
+        label.className = 'param-label';
+        label.textContent = cf.label;
+        const inputContainer = document.createElement('div');
+        inputContainer.className = 'param-input';
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = colorVal;
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.value = colorVal;
+
+        colorInput.addEventListener('input', (e) => {
+          currentParams.layout.colors[cf.key] = e.target.value;
+          textInput.value = e.target.value;
+          saveParams();
+        });
+        textInput.addEventListener('input', (e) => {
+          currentParams.layout.colors[cf.key] = e.target.value;
+          colorInput.value = e.target.value;
+          saveParams();
+        });
+
+        inputContainer.appendChild(colorInput);
+        inputContainer.appendChild(textInput);
+        row.appendChild(label);
+        row.appendChild(inputContainer);
+        content.appendChild(row);
+      });
+
+      // 额外字段（如插画大小 slider）
+      if (mapping.extra_fields) {
+        mapping.extra_fields.forEach(ef => {
+          if (ef.type === 'slider') {
+            const field = document.createElement('div');
+            field.className = 'slider-field';
+            field.style.padding = '8px 12px';
+            const fieldLabel = document.createElement('div');
+            fieldLabel.className = 'card-field-label';
+            fieldLabel.textContent = ef.label;
+            field.appendChild(fieldLabel);
+
+            const row = document.createElement('div');
+            row.className = 'slider-row';
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = String(ef.min);
+            slider.max = String(ef.max);
+            slider.step = String(ef.step);
+            slider.value = String(getValueByPath(ef.key) || ef.min);
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'slider-value';
+            valueSpan.textContent = slider.value;
+            slider.addEventListener('input', (e) => {
+              valueSpan.textContent = e.target.value;
+              setValueByPath(ef.key, parseFloat(e.target.value));
+              saveParams();
+            });
+            row.appendChild(slider);
+            row.appendChild(valueSpan);
+            field.appendChild(row);
+            content.appendChild(field);
+          }
+        });
+      }
+
+      // 底栏标签编辑器
+      if (mapping.has_footer_tags) {
+        const tagsWrapper = document.createElement('div');
+        tagsWrapper.style.padding = '8px 12px';
+        const tagsLabel = document.createElement('div');
+        tagsLabel.className = 'card-field-label';
+        tagsLabel.textContent = '底栏标签';
+        tagsWrapper.appendChild(tagsLabel);
+
         const tagsContainer = document.createElement('div');
         tagsContainer.className = 'footer-tags';
+        const footerTags = getFooterTags();
         footerTags.forEach((tag, idx) => {
           const tagRow = document.createElement('div');
           tagRow.className = 'tag-input';
           const tagInput = document.createElement('input');
           tagInput.type = 'text';
           tagInput.value = typeof tag === 'string' ? tag : String(tag ?? '');
-          tagInput.setAttribute('data-tag-idx', String(idx));
-
-          const removeBtn = document.createElement('button');
-          removeBtn.type = 'button';
-          removeBtn.textContent = '删除';
-          removeBtn.addEventListener('click', () => removeTag(idx));
-
           tagInput.addEventListener('input', (e) => {
             getFooterTags()[idx] = e.target.value;
             saveParams();
           });
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '删除';
+          removeBtn.addEventListener('click', () => removeTag(idx));
           tagRow.appendChild(tagInput);
           tagRow.appendChild(removeBtn);
           tagsContainer.appendChild(tagRow);
         });
-
         const addBtn = document.createElement('button');
         addBtn.textContent = '+ 添加标签';
         addBtn.addEventListener('click', () => {
@@ -1127,45 +1308,192 @@
           renderParamPanel();
         });
         tagsContainer.appendChild(addBtn);
-
-        tagsSection.querySelector('.section-content').appendChild(tagsContainer);
-        ui.panelBody.appendChild(tagsSection);
+        tagsWrapper.appendChild(tagsContainer);
+        content.appendChild(tagsWrapper);
       }
 
-      // 6. 动画效果
-      ui.panelBody.appendChild(renderAnimationSection());
+      // 位置 X/Y 滑块（fixed 元素不显示位置控制）
+      if (!el.fixed) {
+        if (!currentParams.positions) currentParams.positions = {};
+        const pos = currentParams.positions[el.id] || { x: el.default_x, y: el.default_y };
 
-      // 7. 配色（放最下面）
-      const colorFields = Object.keys(currentParams.layout.colors).map(key => ({
-        label: key,
-        key: `layout.colors.${key}`,
-        type: 'color'
-      }));
-      const colorSection = createSection('配色', colorFields);
+        const posWrapper = document.createElement('div');
+        posWrapper.style.padding = '4px 12px';
 
-      // 添加一键配色
+        const posHeader = document.createElement('div');
+        posHeader.className = 'position-element-title';
+        posHeader.style.marginBottom = '4px';
+        const posLabel = document.createElement('span');
+        posLabel.className = 'card-field-label';
+        posLabel.textContent = '位置';
+        const resetBtn = document.createElement('button');
+        resetBtn.type = 'button';
+        resetBtn.className = 'position-reset-btn';
+        resetBtn.textContent = '重置位置';
+        resetBtn.addEventListener('click', () => {
+          const fresh = { ...currentParams.positions };
+          delete fresh[el.id];
+          currentParams.positions = fresh;
+          saveParams();
+          renderParamPanel();
+          scheduleRender();
+        });
+        posHeader.appendChild(posLabel);
+        posHeader.appendChild(resetBtn);
+        posWrapper.appendChild(posHeader);
+
+        posWrapper.appendChild(
+          createPositionAxisSlider('X', el.id, 'x', pos.x, el.min_x, el.max_x, el.step, el)
+        );
+        posWrapper.appendChild(
+          createPositionAxisSlider('Y', el.id, 'y', pos.y, el.min_y, el.max_y, el.step, el)
+        );
+        content.appendChild(posWrapper);
+      }
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
+    }
+
+    // ── 画布比例预设 ────────────────────────────────────────────────────────
+    const CANVAS_PRESETS = [
+      { label: '3:4  (1080×1440)',  pw: 1080, ph: 1440  },
+      { label: '9:16 (1080×1920)',  pw: 1080, ph: 1920  },
+      { label: '1:1  (1080×1080)',  pw: 1080, ph: 1080  },
+      { label: '4:5  (1080×1350)',  pw: 1080, ph: 1350  },
+      { label: '16:9 (1920×1080)',  pw: 1920, ph: 1080  },
+    ];
+
+    // ── 背景 & 一键配色区 ────────────────────────────────────────────────────
+    function renderBackgroundAndPaletteSection() {
+      const section = document.createElement('div');
+      section.className = 'section';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = '背景 & 配色';
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      // ── 画布比例选择器 ──
+      const canvasRow = document.createElement('div');
+      canvasRow.className = 'param-row';
+      const canvasLabel = document.createElement('div');
+      canvasLabel.className = 'param-label';
+      canvasLabel.textContent = '画布比例';
+      const canvasSelect = document.createElement('select');
+      canvasSelect.style.width = '100%';
+      canvasSelect.style.padding = '4px 8px';
+      canvasSelect.style.borderRadius = '6px';
+      canvasSelect.style.border = '1px solid var(--line)';
+
+      // 当前画布尺寸（从 canvas 或 layout 回退）
+      const curCanvas = currentParams.canvas || {};
+      const curPW = curCanvas.pixel_width || 1080;
+      const curPH = curCanvas.pixel_height || currentParams.layout.pixel_height || 1440;
+
+      CANVAS_PRESETS.forEach((preset, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx);
+        opt.textContent = preset.label;
+        if (preset.pw === curPW && preset.ph === curPH) {
+          opt.selected = true;
+        }
+        canvasSelect.appendChild(opt);
+      });
+      // "自定义" 选项：如果当前尺寸不匹配任何预设
+      const matchesPreset = CANVAS_PRESETS.some(p => p.pw === curPW && p.ph === curPH);
+      if (!matchesPreset) {
+        const customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = `自定义 (${curPW}×${curPH})`;
+        customOpt.selected = true;
+        canvasSelect.appendChild(customOpt);
+      }
+
+      canvasSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'custom') return;
+        const preset = CANVAS_PRESETS[parseInt(e.target.value, 10)];
+        if (!preset) return;
+        if (!currentParams.canvas) currentParams.canvas = {};
+        currentParams.canvas.pixel_width = preset.pw;
+        currentParams.canvas.pixel_height = preset.ph;
+        // 同步 layout.pixel_height（向后兼容）
+        currentParams.layout.pixel_height = preset.ph;
+        saveParams();
+      });
+      const canvasInputContainer = document.createElement('div');
+      canvasInputContainer.className = 'param-input';
+      canvasInputContainer.appendChild(canvasSelect);
+      canvasRow.appendChild(canvasLabel);
+      canvasRow.appendChild(canvasInputContainer);
+      content.appendChild(canvasRow);
+
+      // ── 背景色 ──
+      const bgVal = currentParams.layout.colors.bg || '#FFFFFF';
+      const bgRow = document.createElement('div');
+      bgRow.className = 'param-row';
+      const bgLabel = document.createElement('div');
+      bgLabel.className = 'param-label';
+      bgLabel.textContent = '背景色';
+      const bgContainer = document.createElement('div');
+      bgContainer.className = 'param-input';
+      const bgColorInput = document.createElement('input');
+      bgColorInput.type = 'color';
+      bgColorInput.value = bgVal;
+      const bgTextInput = document.createElement('input');
+      bgTextInput.type = 'text';
+      bgTextInput.value = bgVal;
+      bgColorInput.addEventListener('input', (e) => {
+        currentParams.layout.colors.bg = e.target.value;
+        bgTextInput.value = e.target.value;
+        saveParams();
+      });
+      bgTextInput.addEventListener('input', (e) => {
+        currentParams.layout.colors.bg = e.target.value;
+        bgColorInput.value = e.target.value;
+        saveParams();
+      });
+      bgContainer.appendChild(bgColorInput);
+      bgContainer.appendChild(bgTextInput);
+      bgRow.appendChild(bgLabel);
+      bgRow.appendChild(bgContainer);
+      content.appendChild(bgRow);
+
+      // ── 一键配色 grid（优先模板自带，回退全局）──
+      const palettes = currentManifestColorPalettes || COLOR_PALETTES;
       const paletteGrid = document.createElement('div');
       paletteGrid.className = 'palette-grid';
-      COLOR_PALETTES.forEach(palette => {
+      palettes.forEach(palette => {
         const item = document.createElement('div');
         item.className = 'palette-item';
         const swatches = document.createElement('div');
         swatches.className = 'palette-swatches';
 
-        const swatchBg = document.createElement('div');
-        swatchBg.className = 'swatch';
-        swatchBg.style.background = String(palette.colors.bg || '');
-        swatches.appendChild(swatchBg);
+        // 显示前 4 个色块：bg, text, accent, + 第一个可用的扩展色
+        const swatchKeys = ['bg', 'text', 'accent'];
+        const extraKey = Object.keys(palette.colors).find(k => !swatchKeys.includes(k));
+        if (extraKey) swatchKeys.push(extraKey);
 
-        const swatchText = document.createElement('div');
-        swatchText.className = 'swatch';
-        swatchText.style.background = String(palette.colors.text || '');
-        swatches.appendChild(swatchText);
-
-        const swatchAccent = document.createElement('div');
-        swatchAccent.className = 'swatch';
-        swatchAccent.style.background = String(palette.colors.accent || '');
-        swatches.appendChild(swatchAccent);
+        swatchKeys.forEach(k => {
+          const swatch = document.createElement('div');
+          swatch.className = 'swatch';
+          swatch.style.background = String(palette.colors[k] || '');
+          swatches.appendChild(swatch);
+        });
 
         const paletteName = document.createElement('div');
         paletteName.className = 'palette-name';
@@ -1176,8 +1504,16 @@
         item.addEventListener('click', () => applyPalette(palette.colors));
         paletteGrid.appendChild(item);
       });
-      colorSection.querySelector('.section-content').appendChild(paletteGrid);
-      ui.panelBody.appendChild(colorSection);
+      content.appendChild(paletteGrid);
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return section;
     }
 
 
@@ -1204,7 +1540,7 @@
       header.className = 'section-header';
       const titleSpan = document.createElement('span');
       titleSpan.className = 'section-title';
-      titleSpan.textContent = '样式调整';
+      titleSpan.textContent = '🎨 文字样式';
       const arrowSpan = document.createElement('span');
       arrowSpan.textContent = '▼';
       header.appendChild(titleSpan);
@@ -1213,39 +1549,72 @@
       const content = document.createElement('div');
       content.className = 'section-content';
 
-      // 插画大小滑块
-      const illusSizeField = document.createElement('div');
-      illusSizeField.className = 'slider-field';
+      // 文字大小滑块
+      const fontSizeField = document.createElement('div');
+      fontSizeField.className = 'slider-field';
+      fontSizeField.style.padding = '8px 12px';
 
-      const illusSizeLabel = document.createElement('div');
-      illusSizeLabel.className = 'card-field-label';
-      illusSizeLabel.textContent = '插画大小';
-      illusSizeField.appendChild(illusSizeLabel);
+      const fontSizeLabel = document.createElement('div');
+      fontSizeLabel.className = 'card-field-label';
+      fontSizeLabel.textContent = '文字大小';
+      fontSizeField.appendChild(fontSizeLabel);
 
-      const illusSizeRow = document.createElement('div');
-      illusSizeRow.className = 'slider-row';
+      const fontSizeRow = document.createElement('div');
+      fontSizeRow.className = 'slider-row';
 
-      const illusSizeSlider = document.createElement('input');
-      illusSizeSlider.type = 'range';
-      illusSizeSlider.min = '2.0';
-      illusSizeSlider.max = '8.0';
-      illusSizeSlider.step = '0.5';
-      illusSizeSlider.value = String(currentParams.layout.illustration_size || 5.0);
+      const fontSizeSlider = document.createElement('input');
+      fontSizeSlider.type = 'range';
+      fontSizeSlider.min = '24';
+      fontSizeSlider.max = '72';
+      fontSizeSlider.step = '2';
+      fontSizeSlider.value = String(currentParams.layout.font_size || 48);
 
-      const illusSizeValue = document.createElement('span');
-      illusSizeValue.className = 'slider-value';
-      illusSizeValue.textContent = illusSizeSlider.value;
+      const fontSizeValue = document.createElement('span');
+      fontSizeValue.className = 'slider-value';
+      fontSizeValue.textContent = fontSizeSlider.value;
 
-      illusSizeSlider.addEventListener('input', (e) => {
-        illusSizeValue.textContent = e.target.value;
-        currentParams.layout.illustration_size = parseFloat(e.target.value);
+      fontSizeSlider.addEventListener('input', (e) => {
+        fontSizeValue.textContent = e.target.value;
+        currentParams.layout.font_size = parseInt(e.target.value, 10);
+        recomputeWrapChars();
         saveParams();
       });
 
-      illusSizeRow.appendChild(illusSizeSlider);
-      illusSizeRow.appendChild(illusSizeValue);
-      illusSizeField.appendChild(illusSizeRow);
-      content.appendChild(illusSizeField);
+      fontSizeRow.appendChild(fontSizeSlider);
+      fontSizeRow.appendChild(fontSizeValue);
+      fontSizeField.appendChild(fontSizeRow);
+      content.appendChild(fontSizeField);
+
+      // 文字颜色
+      const textColorVal = currentParams.layout.colors.text || '#000000';
+      const textColorRow = document.createElement('div');
+      textColorRow.className = 'param-row';
+      const textColorLabel = document.createElement('div');
+      textColorLabel.className = 'param-label';
+      textColorLabel.textContent = '文字颜色';
+      const textColorContainer = document.createElement('div');
+      textColorContainer.className = 'param-input';
+      const textColorInput = document.createElement('input');
+      textColorInput.type = 'color';
+      textColorInput.value = textColorVal;
+      const textColorText = document.createElement('input');
+      textColorText.type = 'text';
+      textColorText.value = textColorVal;
+      textColorInput.addEventListener('input', (e) => {
+        currentParams.layout.colors.text = e.target.value;
+        textColorText.value = e.target.value;
+        saveParams();
+      });
+      textColorText.addEventListener('input', (e) => {
+        currentParams.layout.colors.text = e.target.value;
+        textColorInput.value = e.target.value;
+        saveParams();
+      });
+      textColorContainer.appendChild(textColorInput);
+      textColorContainer.appendChild(textColorText);
+      textColorRow.appendChild(textColorLabel);
+      textColorRow.appendChild(textColorContainer);
+      content.appendChild(textColorRow);
 
       // 每行字数（自动计算，只读显示）
       const wrapCharsField = document.createElement('div');
@@ -1262,7 +1631,6 @@
       wrapCharsInput.disabled = true;
       wrapCharsInput.title = '根据文字大小自动计算';
 
-      // 自动计算 wrap_chars
       recomputeWrapChars();
       wrapCharsInput.value = String(currentParams.layout.wrap_chars);
 
@@ -1352,101 +1720,7 @@
 
     // ── 位置调整区 ─────────────────────────────────────────────────────────────
 
-    function renderPositionSection() {
-      const section = document.createElement('div');
-      section.className = 'section position-section';
-      section.id = 'position-section';
-
-      if (!currentManifestElements || currentManifestElements.length === 0) {
-        section.classList.add('hidden');
-        return section;
-      }
-
-      const header = document.createElement('div');
-      header.className = 'section-header';
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'section-title';
-      titleSpan.textContent = '元素位置';
-      const arrowSpan = document.createElement('span');
-      arrowSpan.textContent = '▼';
-      header.appendChild(titleSpan);
-      header.appendChild(arrowSpan);
-
-      const content = document.createElement('div');
-      content.className = 'section-content';
-
-      const resetAllBar = document.createElement('div');
-      resetAllBar.className = 'position-reset-all-bar';
-      const resetAllBtn = document.createElement('button');
-      resetAllBtn.type = 'button';
-      resetAllBtn.className = 'position-reset-all-btn';
-      resetAllBtn.textContent = '全部重置';
-      resetAllBtn.addEventListener('click', () => {
-        if (!currentParams.positions) currentParams.positions = {};
-        currentParams.positions = {};
-        saveParams();
-        renderParamPanel();
-        scheduleRender();
-      });
-      resetAllBar.appendChild(resetAllBtn);
-      content.appendChild(resetAllBar);
-
-      currentManifestElements.forEach(el => {
-        content.appendChild(createPositionElementCard(el));
-      });
-
-      header.addEventListener('click', () => {
-        content.classList.toggle('collapsed');
-        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
-      });
-
-      section.appendChild(header);
-      section.appendChild(content);
-      return section;
-    }
-
-    function createPositionElementCard(el) {
-      const card = document.createElement('div');
-      card.className = 'position-element-card';
-
-      const titleRow = document.createElement('div');
-      titleRow.className = 'position-element-title';
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'position-element-name';
-      nameSpan.textContent = String(el.label || el.id);
-
-      const resetBtn = document.createElement('button');
-      resetBtn.type = 'button';
-      resetBtn.className = 'position-reset-btn';
-      resetBtn.textContent = '重置';
-      resetBtn.addEventListener('click', () => {
-        if (!currentParams.positions) currentParams.positions = {};
-        const fresh = { ...currentParams.positions };
-        delete fresh[el.id];
-        currentParams.positions = fresh;
-        saveParams();
-        renderParamPanel();
-        scheduleRender();
-      });
-
-      titleRow.appendChild(nameSpan);
-      titleRow.appendChild(resetBtn);
-      card.appendChild(titleRow);
-
-      if (!currentParams.positions) currentParams.positions = {};
-      const pos = currentParams.positions[el.id] || { x: el.default_x, y: el.default_y };
-
-      card.appendChild(
-        createPositionAxisSlider('X', el.id, 'x', pos.x, el.min_x, el.max_x, el.step, el)
-      );
-
-      card.appendChild(
-        createPositionAxisSlider('Y', el.id, 'y', pos.y, el.min_y, el.max_y, el.step, el)
-      );
-
-      return card;
-    }
+    // renderPositionSection 和 createPositionElementCard 已移入 renderElementSection()
 
     function createPositionAxisSlider(axisLabel, elemId, axis, initialValue, min, max, step, el) {
       const field = document.createElement('div');
@@ -1501,6 +1775,7 @@
           result[id] = pos;
           continue;
         }
+        if (el.fixed) continue;
         if (pos.x !== el.default_x || pos.y !== el.default_y) {
           result[id] = pos;
         }
@@ -1519,7 +1794,7 @@
       header.className = 'section-header';
       const titleSpan = document.createElement('span');
       titleSpan.className = 'section-title';
-      titleSpan.textContent = '卡片内容';
+      titleSpan.textContent = '📝 卡片内容';
       const arrowSpan = document.createElement('span');
       arrowSpan.textContent = '▼';
       header.appendChild(titleSpan);
@@ -1537,7 +1812,6 @@
         });
       }
 
-      // 单卡片编辑器
       const editor = document.createElement('div');
       editor.className = 'single-card-editor';
 
@@ -1559,77 +1833,6 @@
 
       editor.appendChild(narrationLabel);
       editor.appendChild(narrationTA);
-
-      // 文字大小滑块
-      const fontSizeField = document.createElement('div');
-      fontSizeField.className = 'slider-field';
-
-      const fontSizeLabel = document.createElement('div');
-      fontSizeLabel.className = 'card-field-label';
-      fontSizeLabel.textContent = '文字大小';
-      fontSizeField.appendChild(fontSizeLabel);
-
-      const fontSizeRow = document.createElement('div');
-      fontSizeRow.className = 'slider-row';
-
-      const fontSizeSlider = document.createElement('input');
-      fontSizeSlider.type = 'range';
-      fontSizeSlider.min = '24';
-      fontSizeSlider.max = '72';
-      fontSizeSlider.step = '2';
-      fontSizeSlider.value = String(currentParams.layout.font_size || 48);
-
-      const fontSizeValue = document.createElement('span');
-      fontSizeValue.className = 'slider-value';
-      fontSizeValue.textContent = fontSizeSlider.value;
-
-      fontSizeSlider.addEventListener('input', (e) => {
-        fontSizeValue.textContent = e.target.value;
-        currentParams.layout.font_size = parseInt(e.target.value, 10);
-        recomputeWrapChars();
-        saveParams();
-      });
-
-      fontSizeRow.appendChild(fontSizeSlider);
-      fontSizeRow.appendChild(fontSizeValue);
-      fontSizeField.appendChild(fontSizeRow);
-      editor.appendChild(fontSizeField);
-
-      // 文字颜色选择器
-      const textColorField = document.createElement('div');
-      textColorField.className = 'param-row';
-
-      const textColorLabel = document.createElement('div');
-      textColorLabel.className = 'param-label';
-      textColorLabel.textContent = '文字颜色';
-
-      const textColorContainer = document.createElement('div');
-      textColorContainer.className = 'param-input';
-
-      const textColorInput = document.createElement('input');
-      textColorInput.type = 'color';
-      textColorInput.value = currentParams.layout.colors.text || '#000000';
-      textColorInput.addEventListener('input', (e) => {
-        currentParams.layout.colors.text = e.target.value;
-        textColorText.value = e.target.value;
-        saveParams();
-      });
-
-      const textColorText = document.createElement('input');
-      textColorText.type = 'text';
-      textColorText.value = currentParams.layout.colors.text || '#000000';
-      textColorText.addEventListener('input', (e) => {
-        currentParams.layout.colors.text = e.target.value;
-        textColorInput.value = e.target.value;
-        saveParams();
-      });
-
-      textColorContainer.appendChild(textColorInput);
-      textColorContainer.appendChild(textColorText);
-      textColorField.appendChild(textColorLabel);
-      textColorField.appendChild(textColorContainer);
-      editor.appendChild(textColorField);
-
       content.appendChild(editor);
 
       header.addEventListener('click', () => {
@@ -1758,9 +1961,13 @@
       obj[keys[keys.length - 1]] = value;
     }
 
-    // 应用配色方案
+    // 应用配色方案（只覆盖当前模板已有的颜色 key，保证通用性）
     function applyPalette(colors) {
-      Object.assign(currentParams.layout.colors, colors);
+      for (const key of Object.keys(colors)) {
+        if (Object.prototype.hasOwnProperty.call(currentParams.layout.colors, key)) {
+          currentParams.layout.colors[key] = colors[key];
+        }
+      }
       saveParams();
       renderParamPanel();
     }
@@ -1897,17 +2104,27 @@
     // 加载已有视频帧
     async function loadExistingFrame() {
       if (!previewServerAvailable) {
-        return;
+        return false;
       }
       try {
-        const response = await fetch(`${API_BASE}/api/video_frame?template=${currentTemplate}`);
-        if (response.ok) {
-          const blob = await response.blob();
-          showPreviewBlob(blob);
-          updateStatus('success', '已加载视频帧');
+        const response = await fetch(`${API_BASE}/api/video_frame?template=${encodeURIComponent(currentTemplate)}`);
+        if (!response.ok) {
+          return false;
         }
+        const contentType = response.headers.get('Content-Type') || '';
+        if (!contentType.includes('image/')) {
+          return false;
+        }
+        const blob = await response.blob();
+        if (!blob || blob.size === 0) {
+          return false;
+        }
+        showPreviewBlob(blob);
+        updateStatus('success', '已加载视频帧');
+        return true;
       } catch (error) {
         console.warn('加载历史视频帧失败:', error);
+        return false;
       }
     }
 
