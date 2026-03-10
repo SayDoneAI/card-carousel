@@ -1080,6 +1080,7 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
 class ThreadedHTTPServer(http.server.ThreadingHTTPServer):
     """多线程 HTTP 服务器（允许并发静态文件请求，渲染由锁串行化）"""
     daemon_threads = True
+    allow_reuse_address = True
 
 
 def main():
