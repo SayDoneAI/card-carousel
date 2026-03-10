@@ -395,6 +395,24 @@
       display: none;
     }
 
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .mode-toggle button {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 999px;
+    }
+
+    .mode-toggle button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
     .footer-tags {
       display: flex;
       flex-direction: column;
@@ -770,6 +788,7 @@
     let renderInFlight = false;  // last-write-wins：当前是否有渲染在飞
     let pendingRender = null;    // last-write-wins：是否有待执行的补偿渲染
     let _latestRequestId = 0;    // 单调递增请求 ID，用于丢弃过期响应
+    let bgModePreference = null; // 'solid' | 'gradient' | null（未手动选择）
 
     // UI 元素
     const ui = {
@@ -1743,18 +1762,75 @@
       const bgTextInput = document.createElement('input');
       bgTextInput.type = 'text';
       bgTextInput.value = bgVal;
+
+      const curBg = currentParams.layout.background;
+      const hasGradient = Boolean(
+        curBg
+        && curBg.type === 'gradient'
+        && Array.isArray(curBg.stops)
+        && curBg.stops.length
+      );
+
+      const hexToRgb = (hex) => {
+        const raw = String(hex || '').trim().replace(/^#/, '');
+        if (raw.length === 3) {
+          const r = parseInt(raw[0] + raw[0], 16);
+          const g = parseInt(raw[1] + raw[1], 16);
+          const b = parseInt(raw[2] + raw[2], 16);
+          return [r, g, b];
+        }
+        if (raw.length === 6) {
+          const r = parseInt(raw.slice(0, 2), 16);
+          const g = parseInt(raw.slice(2, 4), 16);
+          const b = parseInt(raw.slice(4, 6), 16);
+          return [r, g, b];
+        }
+        return null;
+      };
+
+      const rgbToHex = (rgb) => {
+        const [r, g, b] = rgb.map(v => Math.max(0, Math.min(255, Math.round(v))));
+        const toHex = (v) => v.toString(16).padStart(2, '0').toUpperCase();
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      };
+
+      const darkenHex = (hex, ratio) => {
+        const rgb = hexToRgb(hex);
+        if (!rgb) return hex;
+        return rgbToHex(rgb.map(v => v * (1 - ratio)));
+      };
+
+      const ensureDefaultGradient = () => {
+        const base = currentParams.layout.colors.bg || '#FFFFFF';
+        const baseHex = rgbToHex(hexToRgb(base) || [255, 255, 255]);
+        currentParams.layout.background = {
+          type: 'gradient',
+          direction: 'vertical',
+          stops: [
+            { position: 0, color: baseHex },
+            { position: 50, color: darkenHex(baseHex, 0.08) },
+            { position: 100, color: darkenHex(baseHex, 0.18) }
+          ]
+        };
+      };
+
+      const syncGradientStop0 = (value) => {
+        const bgCfg = currentParams.layout.background;
+        if (!bgCfg || !Array.isArray(bgCfg.stops) || !bgCfg.stops.length) return;
+        bgCfg.stops[0].color = value;
+      };
+
       bgColorInput.addEventListener('input', (e) => {
         currentParams.layout.colors.bg = e.target.value;
         bgTextInput.value = e.target.value;
-        // 手动改背景色 → 清除渐变（回退纯色）
-        delete currentParams.layout.background;
+        if (hasGradient) syncGradientStop0(e.target.value);
         saveParams();
         renderParamPanel();
       });
       bgTextInput.addEventListener('change', (e) => {
         currentParams.layout.colors.bg = e.target.value;
         bgColorInput.value = e.target.value;
-        delete currentParams.layout.background;
+        if (hasGradient) syncGradientStop0(e.target.value);
         saveParams();
         renderParamPanel();
       });
@@ -1764,52 +1840,120 @@
       bgRow.appendChild(bgContainer);
       content.appendChild(bgRow);
 
-      // ── 渐变背景预览（只读，由配色方案自动控制） ──
-      const curBg = currentParams.layout.background;
-      if (curBg && curBg.type === 'gradient' && curBg.stops && curBg.stops.length) {
+      // ── 背景模式切换 ──
+      const modeRow = document.createElement('div');
+      modeRow.className = 'param-row';
+      const modeLabel = document.createElement('div');
+      modeLabel.className = 'param-label';
+      modeLabel.textContent = '背景模式';
+      const modeContainer = document.createElement('div');
+      modeContainer.className = 'param-input';
+      const modeToggle = document.createElement('div');
+      modeToggle.className = 'mode-toggle';
+      const solidBtn = document.createElement('button');
+      solidBtn.type = 'button';
+      solidBtn.textContent = '纯色';
+      const gradientBtn = document.createElement('button');
+      gradientBtn.type = 'button';
+      gradientBtn.textContent = '渐变';
+      if (hasGradient) {
+        gradientBtn.classList.add('active');
+      } else {
+        solidBtn.classList.add('active');
+      }
+      solidBtn.addEventListener('click', () => {
+        if (!hasGradient) return;
+        bgModePreference = 'solid';
+        delete currentParams.layout.background;
+        saveParams();
+        renderParamPanel();
+      });
+      gradientBtn.addEventListener('click', () => {
+        if (hasGradient) return;
+        bgModePreference = 'gradient';
+        const bgCfg = currentParams.layout.background;
+        if (!bgCfg || !Array.isArray(bgCfg.stops) || !bgCfg.stops.length) {
+          ensureDefaultGradient();
+        } else {
+          if (!bgCfg.type) bgCfg.type = 'gradient';
+          if (!bgCfg.direction) bgCfg.direction = 'vertical';
+        }
+        saveParams();
+        renderParamPanel();
+      });
+      modeToggle.appendChild(solidBtn);
+      modeToggle.appendChild(gradientBtn);
+      modeContainer.appendChild(modeToggle);
+      modeRow.appendChild(modeLabel);
+      modeRow.appendChild(modeContainer);
+      content.appendChild(modeRow);
+
+      // ── 渐变编辑 ──
+      if (hasGradient) {
+        const gradientBox = document.createElement('div');
+        gradientBox.className = 'gradient-options';
+
+        const gradHeader = document.createElement('div');
+        gradHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+        const gradLabel = document.createElement('div');
+        gradLabel.style.cssText = 'font-size:11px;color:var(--muted);';
+        gradLabel.textContent = '渐变编辑';
+        gradHeader.appendChild(gradLabel);
+        gradientBox.appendChild(gradHeader);
+
         const gradPreview = document.createElement('div');
         gradPreview.style.cssText = 'margin:4px 0 8px;';
-        const gradLabel = document.createElement('div');
-        gradLabel.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:4px;';
-        gradLabel.textContent = '当前渐变（由配色方案控制）';
-        const cssStops = curBg.stops.map(s => `${s.color} ${s.position}%`).join(', ');
         const gradBar = document.createElement('div');
-        gradBar.style.cssText = `height:20px;border-radius:4px;background:linear-gradient(to bottom, ${cssStops});border:1px solid var(--line);`;
-        gradPreview.appendChild(gradLabel);
+        gradBar.style.cssText = 'height:20px;border-radius:4px;border:1px solid var(--line);';
+        const updateGradBar = () => {
+          const bgCfg = currentParams.layout.background;
+          if (!bgCfg || !bgCfg.stops || !bgCfg.stops.length) return;
+          const cssStops = bgCfg.stops.map(s => `${s.color} ${s.position}%`).join(', ');
+          gradBar.style.background = `linear-gradient(to bottom, ${cssStops})`;
+        };
+        updateGradBar();
         gradPreview.appendChild(gradBar);
-        content.appendChild(gradPreview);
-      }
+        gradientBox.appendChild(gradPreview);
 
-      // ── 文字颜色 ──
-      const textColorVal = currentParams.layout.colors.text || '#000000';
-      const textColorRow = document.createElement('div');
-      textColorRow.className = 'param-row';
-      const textColorLabel = document.createElement('div');
-      textColorLabel.className = 'param-label';
-      textColorLabel.textContent = '文字颜色';
-      const textColorContainer = document.createElement('div');
-      textColorContainer.className = 'param-input';
-      const textColorInput = document.createElement('input');
-      textColorInput.type = 'color';
-      textColorInput.value = textColorVal;
-      const textColorText = document.createElement('input');
-      textColorText.type = 'text';
-      textColorText.value = textColorVal;
-      textColorInput.addEventListener('input', (e) => {
-        currentParams.layout.colors.text = e.target.value;
-        textColorText.value = e.target.value;
-        saveParams();
-      });
-      textColorText.addEventListener('input', (e) => {
-        currentParams.layout.colors.text = e.target.value;
-        textColorInput.value = e.target.value;
-        saveParams();
-      });
-      textColorContainer.appendChild(textColorInput);
-      textColorContainer.appendChild(textColorText);
-      textColorRow.appendChild(textColorLabel);
-      textColorRow.appendChild(textColorContainer);
-      content.appendChild(textColorRow);
+        curBg.stops.forEach((stop, idx) => {
+          const stopRow = document.createElement('div');
+          stopRow.className = 'param-row';
+          const stopLabel = document.createElement('div');
+          stopLabel.className = 'param-label';
+          stopLabel.textContent = `Stop ${idx + 1} (${stop.position}%)`;
+          const stopInputContainer = document.createElement('div');
+          stopInputContainer.className = 'param-input';
+          const stopColorInput = document.createElement('input');
+          stopColorInput.type = 'color';
+          stopColorInput.value = stop.color;
+          const stopTextInput = document.createElement('input');
+          stopTextInput.type = 'text';
+          stopTextInput.value = stop.color;
+
+          const updateStopColor = (value) => {
+            currentParams.layout.background.stops[idx].color = value;
+            stopColorInput.value = value;
+            stopTextInput.value = value;
+            updateGradBar();
+            saveParams();
+          };
+
+          stopColorInput.addEventListener('input', (e) => {
+            updateStopColor(e.target.value);
+          });
+          stopTextInput.addEventListener('input', (e) => {
+            updateStopColor(e.target.value);
+          });
+
+          stopInputContainer.appendChild(stopColorInput);
+          stopInputContainer.appendChild(stopTextInput);
+          stopRow.appendChild(stopLabel);
+          stopRow.appendChild(stopInputContainer);
+          gradientBox.appendChild(stopRow);
+        });
+
+        content.appendChild(gradientBox);
+      }
 
       // ── 一键配色 grid（优先模板自带，回退全局）──
       const palettes = currentManifestColorPalettes || COLOR_PALETTES;
@@ -2250,7 +2394,8 @@
         currentParams.layout.colors[key] = colors[key];
       }
       // 同步渐变背景配置（如果 palette 提供了 background）
-      if (background && background.stops) {
+      const preferSolid = bgModePreference === 'solid';
+      if (background && background.stops && !preferSolid) {
         currentParams.layout.background = { ...background };
         // 确保有 type 字段（渲染端依赖）
         if (!currentParams.layout.background.type) {
@@ -2260,7 +2405,7 @@
           currentParams.layout.background.direction = 'vertical';
         }
       } else if (currentParams.layout.background) {
-        // palette 无渐变时，移除渐变配置（回退到纯色背景）
+        // 纯色模式或 palette 无渐变时，移除渐变配置（回退到纯色背景）
         delete currentParams.layout.background;
       }
       saveParams();

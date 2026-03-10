@@ -968,6 +968,15 @@ class GenericCardScene(Scene):
         max_chars = cfg.get("layout", {}).get("max_chars_per_card", 18)
         sentences, keywords = split_long_sentences(raw_sentences, keywords, max_chars)
 
+        def _is_light_bg(hex_color):
+            """判断背景色是否为亮色（亮度 > 128）"""
+            hex_color = hex_color.lstrip('#')
+            r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+            luminance = 0.299 * r + 0.587 * g + 0.114 * b
+            return luminance > 128
+
+        caption_color = "#000000" if _is_light_bg(colors.get("bg", "#000000")) else "#FFFFFF"
+
         # 查找 illustration / caption 元素声明（仅 visible 的）
         illus_elem = None
         caption_elem = None
@@ -1041,7 +1050,7 @@ class GenericCardScene(Scene):
                 wrap_chinese(sentence, wrap_chars),
                 font=font,
                 font_size=font_size,
-                color=colors.get("text", "#FFFFFF"),
+                color=caption_color,
                 weight=BOLD,
                 line_spacing=1.0,
             )
