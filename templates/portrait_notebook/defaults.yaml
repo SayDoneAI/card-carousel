@@ -35,7 +35,7 @@ brand_defaults:
   subtitle: "企业人工智能转型三个目标"
 
 color_palettes:
-  # ── 浅色系（柔和渐变） ──
+  # ── 浅色系（7 款） ──
   - name: "经典黑白"
     colors: { bg: "#FFFFFF", text: "#1A1A1A", accent: "#C0392B", subtitle: "#C0392B", pinyin: "#333333", muted: "#999999", bar_bg: "#DBDADB", bar_text: "#1A1A1A" }
     background:
@@ -46,7 +46,7 @@ color_palettes:
         - { position: 50, color: "#FAFAFA" }
         - { position: 100, color: "#F5F5F5" }
   - name: "清新薄荷"
-    colors: { bg: "#F0FDF4", text: "#14532D", accent: "#10B981", subtitle: "#059669", pinyin: "#047857", muted: "#9CA3AF", bar_bg: "#D1FAE5", bar_text: "#065F46" }
+    colors: { bg: "#F0FDF4", text: "#14532D", accent: "#059669", subtitle: "#047857", pinyin: "#047857", muted: "#6B7280", bar_bg: "#D1FAE5", bar_text: "#065F46" }
     background:
       type: "gradient"
       direction: "vertical"
@@ -55,7 +55,7 @@ color_palettes:
         - { position: 50, color: "#E7FCED" }
         - { position: 100, color: "#DEFBE7" }
   - name: "柔雾薰衣草"
-    colors: { bg: "#FAF5FF", text: "#4C1D95", accent: "#8B5CF6", subtitle: "#7C3AED", pinyin: "#6D28D9", muted: "#A78BFA", bar_bg: "#EDE9FE", bar_text: "#5B21B6" }
+    colors: { bg: "#FAF5FF", text: "#4C1D95", accent: "#7C3AED", subtitle: "#6D28D9", pinyin: "#6D28D9", muted: "#8B7EC8", bar_bg: "#EDE9FE", bar_text: "#5B21B6" }
     background:
       type: "gradient"
       direction: "vertical"
@@ -64,7 +64,7 @@ color_palettes:
         - { position: 50, color: "#F5EBFF" }
         - { position: 100, color: "#F0E1FF" }
   - name: "暖桃微光"
-    colors: { bg: "#FFF5F5", text: "#4A1D1D", accent: "#E8604C", subtitle: "#D94F3E", pinyin: "#9B3A2E", muted: "#C4A0A0", bar_bg: "#FFE4E1", bar_text: "#6B2B2B" }
+    colors: { bg: "#FFF5F5", text: "#4A1D1D", accent: "#D94F3E", subtitle: "#C0392B", pinyin: "#9B3A2E", muted: "#9B7A7A", bar_bg: "#FFE4E1", bar_text: "#6B2B2B" }
     background:
       type: "gradient"
       direction: "vertical"
@@ -72,7 +72,34 @@ color_palettes:
         - { position: 0, color: "#FFF5F5" }
         - { position: 50, color: "#FFEBEB" }
         - { position: 100, color: "#FFE1E1" }
-  # ── 暖色氛围系 ──
+  - name: "晴空蔚蓝"
+    colors: { bg: "#F0F7FF", text: "#1E3A5F", accent: "#2563EB", subtitle: "#1D4ED8", pinyin: "#1E40AF", muted: "#6B7280", bar_bg: "#DBEAFE", bar_text: "#1E3A5F" }
+    background:
+      type: "gradient"
+      direction: "vertical"
+      stops:
+        - { position: 0, color: "#F0F7FF" }
+        - { position: 50, color: "#E8F1FC" }
+        - { position: 100, color: "#DFEBF9" }
+  - name: "奶油暖阳"
+    colors: { bg: "#FFF8F0", text: "#5C4033", accent: "#C87941", subtitle: "#B5651D", pinyin: "#8B6914", muted: "#9C8B7A", bar_bg: "#FFE8D0", bar_text: "#5C4033" }
+    background:
+      type: "gradient"
+      direction: "vertical"
+      stops:
+        - { position: 0, color: "#FFF8F0" }
+        - { position: 50, color: "#FFF3E8" }
+        - { position: 100, color: "#FFEEE0" }
+  - name: "水墨丹青"
+    colors: { bg: "#F5F2ED", text: "#2C2C2C", accent: "#6B7F5E", subtitle: "#5A6B4E", pinyin: "#4A5A3E", muted: "#8C8C8C", bar_bg: "#E8E4DC", bar_text: "#3C3C3C" }
+    background:
+      type: "gradient"
+      direction: "vertical"
+      stops:
+        - { position: 0, color: "#F5F2ED" }
+        - { position: 50, color: "#EFECE6" }
+        - { position: 100, color: "#E9E5DF" }
+  # ── 暖色氛围系（3 款） ──
   - name: "冬日暖阳"
     colors: { bg: "#3D2B1F", text: "#FFF8E7", accent: "#E8B86D", subtitle: "#F5DEB3", pinyin: "#D4A96A", muted: "#8B7355", bar_bg: "#4A3728", bar_text: "#F5DEB3" }
     background:
@@ -100,7 +127,16 @@ color_palettes:
         - { position: 0, color: "#4A3828" }
         - { position: 50, color: "#3A2A1E" }
         - { position: 100, color: "#2C1E14" }
-  # ── 暗色高级系 ──
+  # ── 暗色高级系（7 款） ──
+  - name: "莫兰迪灰粉"
+    colors: { bg: "#F2EDEB", text: "#3D3633", accent: "#7A5C52", subtitle: "#6E574D", pinyin: "#6B5B52", muted: "#A09590", bar_bg: "#E5DFDC", bar_text: "#4A3F3A" }
+    background:
+      type: "gradient"
+      direction: "vertical"
+      stops:
+        - { position: 0, color: "#F2EDEB" }
+        - { position: 50, color: "#ECE7E4" }
+        - { position: 100, color: "#E5DFDC" }
   - name: "极夜蓝紫"
     colors: { bg: "#0F0F1A", text: "#F0E6FF", accent: "#A78BFA", subtitle: "#D4C1FF", pinyin: "#8B7EC8", muted: "#5A5478", bar_bg: "#1E1435", bar_text: "#D4C1FF" }
     background:
@@ -119,15 +155,15 @@ color_palettes:
         - { position: 0, color: "#1D3461" }
         - { position: 50, color: "#112240" }
         - { position: 100, color: "#0A192F" }
-  - name: "赛博暗夜"
-    colors: { bg: "#0F0F12", text: "#E0E0E0", accent: "#00F5D4", subtitle: "#00F5D4", pinyin: "#A0A0A5", muted: "#6B6B70", bar_bg: "#1A1A2E", bar_text: "#00F5D4" }
+  - name: "故宫朱砂"
+    colors: { bg: "#1A0A0E", text: "#F0D5C9", accent: "#C4473A", subtitle: "#E07B6E", pinyin: "#D4826F", muted: "#6B4A4A", bar_bg: "#2E1418", bar_text: "#E07B6E" }
     background:
       type: "gradient"
       direction: "vertical"
       stops:
-        - { position: 0, color: "#1A1A2E" }
-        - { position: 50, color: "#161625" }
-        - { position: 100, color: "#0F0F12" }
+        - { position: 0, color: "#2E1418" }
+        - { position: 50, color: "#241012" }
+        - { position: 100, color: "#1A0A0E" }
   - name: "午夜墨绿"
     colors: { bg: "#000000", text: "#C9F0D6", accent: "#4ADE80", subtitle: "#86EFAC", pinyin: "#6EE7A0", muted: "#3D5A45", bar_bg: "#051412", bar_text: "#86EFAC" }
     background:
@@ -155,15 +191,6 @@ color_palettes:
         - { position: 0, color: "#3D001F" }
         - { position: 50, color: "#280014" }
         - { position: 100, color: "#18000A" }
-  - name: "冷灰炭黑"
-    colors: { bg: "#121212", text: "#E0E0E0", accent: "#00D4FF", subtitle: "#00D4FF", pinyin: "#8ECAE6", muted: "#555555", bar_bg: "#1E1E1E", bar_text: "#00D4FF" }
-    background:
-      type: "gradient"
-      direction: "vertical"
-      stops:
-        - { position: 0, color: "#2B2B2B" }
-        - { position: 50, color: "#1A1A1A" }
-        - { position: 100, color: "#121212" }
 
 positionable_elements:
   - id: "gradient_overlay"
