@@ -705,18 +705,45 @@
     const templateManifestCache = {};
     const INTEGER_LAYOUT_FIELDS = new Set(['layout.pixel_height', 'layout.wrap_chars', 'layout.max_chars_per_card']);
 
-    // 一键配色方案（7 色：bg, text, accent, pinyin, muted, bar_bg, bar_text）
+    // 一键配色方案（8 色 + 渐变背景，与 defaults.yaml color_palettes 同步）
     const COLOR_PALETTES = [
-      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#1A1A1A', accent: '#E63946', pinyin: '#457B9D', muted: '#A8A8A8', bar_bg: '#F1FAEE', bar_text: '#1D3557' } },
-      { name: '赛博暗夜', colors: { bg: '#0F0F12', text: '#E0E0E0', accent: '#00F5D4', pinyin: '#A0A0A5', muted: '#6B6B70', bar_bg: '#1A1A2E', bar_text: '#00F5D4' } },
-      { name: '深邃星空', colors: { bg: '#0A192F', text: '#E6F1FF', accent: '#64FFDA', pinyin: '#8892B0', muted: '#495670', bar_bg: '#112240', bar_text: '#64FFDA' } },
-      { name: '暗紫霓虹', colors: { bg: '#1A0A2E', text: '#F0E6FF', accent: '#A855F7', pinyin: '#7C3AED', muted: '#6B5B7B', bar_bg: '#2D1B4E', bar_text: '#C084FC' } },
-      { name: '温润墨绿', colors: { bg: '#1B2D2A', text: '#E8F0ED', accent: '#4ADE80', pinyin: '#86EFAC', muted: '#6B8F80', bar_bg: '#0F1F1C', bar_text: '#4ADE80' } },
-      { name: '暖金黑', colors: { bg: '#121212', text: '#FAFAFA', accent: '#FFD700', pinyin: '#B8860B', muted: '#888888', bar_bg: '#1E1E1E', bar_text: '#FFD700' } },
-      { name: '玫瑰暗红', colors: { bg: '#1A0000', text: '#FFE4E6', accent: '#FF2E63', pinyin: '#FB7185', muted: '#6B3A3A', bar_bg: '#2D0A0A', bar_text: '#FF6B8A' } },
-      { name: '温暖米色', colors: { bg: '#F5F1E8', text: '#2C2416', accent: '#D97706', pinyin: '#78716C', muted: '#A8A29E', bar_bg: '#E7E5E4', bar_text: '#44403C' } },
-      { name: '冷灰极简', colors: { bg: '#F8FAFC', text: '#0F172A', accent: '#3B82F6', pinyin: '#475569', muted: '#94A3B8', bar_bg: '#E2E8F0', bar_text: '#334155' } },
-      { name: '青瓷', colors: { bg: '#0D1B2A', text: '#E0FBFC', accent: '#06B6D4', pinyin: '#22D3EE', muted: '#5B7B8A', bar_bg: '#1B2838', bar_text: '#06B6D4' } }
+      // ── 浅色系（7 款） ──
+      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#1A1A1A', accent: '#C0392B', subtitle: '#C0392B', pinyin: '#333333', muted: '#999999', bar_bg: '#DBDADB', bar_text: '#1A1A1A' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#FFFFFF' }, { position: 50, color: '#FAFAFA' }, { position: 100, color: '#F5F5F5' }] } },
+      { name: '清新薄荷', colors: { bg: '#F0FDF4', text: '#14532D', accent: '#059669', subtitle: '#047857', pinyin: '#047857', muted: '#6B7280', bar_bg: '#D1FAE5', bar_text: '#065F46' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#F0FDF4' }, { position: 50, color: '#E7FCED' }, { position: 100, color: '#DEFBE7' }] } },
+      { name: '柔雾薰衣草', colors: { bg: '#FAF5FF', text: '#4C1D95', accent: '#7C3AED', subtitle: '#6D28D9', pinyin: '#6D28D9', muted: '#8B7EC8', bar_bg: '#EDE9FE', bar_text: '#5B21B6' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#FAF5FF' }, { position: 50, color: '#F5EBFF' }, { position: 100, color: '#F0E1FF' }] } },
+      { name: '暖桃微光', colors: { bg: '#FFF5F5', text: '#4A1D1D', accent: '#D94F3E', subtitle: '#C0392B', pinyin: '#9B3A2E', muted: '#9B7A7A', bar_bg: '#FFE4E1', bar_text: '#6B2B2B' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#FFF5F5' }, { position: 50, color: '#FFEBEB' }, { position: 100, color: '#FFE1E1' }] } },
+      { name: '晴空蔚蓝', colors: { bg: '#F0F7FF', text: '#1E3A5F', accent: '#2563EB', subtitle: '#1D4ED8', pinyin: '#1E40AF', muted: '#6B7280', bar_bg: '#DBEAFE', bar_text: '#1E3A5F' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#F0F7FF' }, { position: 50, color: '#E8F1FC' }, { position: 100, color: '#DFEBF9' }] } },
+      { name: '奶油暖阳', colors: { bg: '#FFF8F0', text: '#5C4033', accent: '#C87941', subtitle: '#B5651D', pinyin: '#8B6914', muted: '#9C8B7A', bar_bg: '#FFE8D0', bar_text: '#5C4033' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#FFF8F0' }, { position: 50, color: '#FFF3E8' }, { position: 100, color: '#FFEEE0' }] } },
+      { name: '水墨丹青', colors: { bg: '#F5F2ED', text: '#2C2C2C', accent: '#6B7F5E', subtitle: '#5A6B4E', pinyin: '#4A5A3E', muted: '#8C8C8C', bar_bg: '#E8E4DC', bar_text: '#3C3C3C' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#F5F2ED' }, { position: 50, color: '#EFECE6' }, { position: 100, color: '#E9E5DF' }] } },
+      // ── 暖色氛围系（3 款） ──
+      { name: '冬日暖阳', colors: { bg: '#3D2B1F', text: '#FFF8E7', accent: '#E8B86D', subtitle: '#F5DEB3', pinyin: '#D4A96A', muted: '#8B7355', bar_bg: '#4A3728', bar_text: '#F5DEB3' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#5C4033' }, { position: 50, color: '#4E3829' }, { position: 100, color: '#3D2B1F' }] } },
+      { name: '日落琥珀', colors: { bg: '#2D1810', text: '#FFE8D6', accent: '#FF8C42', subtitle: '#FFB07C', pinyin: '#E0976A', muted: '#7A5C4A', bar_bg: '#3A2218', bar_text: '#FFB07C' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#4A2E20' }, { position: 50, color: '#3A2218' }, { position: 100, color: '#2D1810' }] } },
+      { name: '焦糖拿铁', colors: { bg: '#2C1E14', text: '#F5E6D3', accent: '#C89B7B', subtitle: '#DEB99F', pinyin: '#B8977A', muted: '#6D5647', bar_bg: '#3A2A1E', bar_text: '#DEB99F' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#4A3828' }, { position: 50, color: '#3A2A1E' }, { position: 100, color: '#2C1E14' }] } },
+      // ── 暗色高级系（7 款） ──
+      { name: '莫兰迪灰粉', colors: { bg: '#F2EDEB', text: '#3D3633', accent: '#7A5C52', subtitle: '#6E574D', pinyin: '#6B5B52', muted: '#A09590', bar_bg: '#E5DFDC', bar_text: '#4A3F3A' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#F2EDEB' }, { position: 50, color: '#ECE7E4' }, { position: 100, color: '#E5DFDC' }] } },
+      { name: '极夜蓝紫', colors: { bg: '#0F0F1A', text: '#F0E6FF', accent: '#A78BFA', subtitle: '#D4C1FF', pinyin: '#8B7EC8', muted: '#5A5478', bar_bg: '#1E1435', bar_text: '#D4C1FF' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#2A1A4A' }, { position: 50, color: '#1E1435' }, { position: 100, color: '#0F0F1A' }] } },
+      { name: '深邃星空', colors: { bg: '#0A192F', text: '#E6F1FF', accent: '#64FFDA', subtitle: '#64FFDA', pinyin: '#8892B0', muted: '#495670', bar_bg: '#112240', bar_text: '#64FFDA' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#1D3461' }, { position: 50, color: '#112240' }, { position: 100, color: '#0A192F' }] } },
+      { name: '故宫朱砂', colors: { bg: '#1A0A0E', text: '#F0D5C9', accent: '#C4473A', subtitle: '#E07B6E', pinyin: '#D4826F', muted: '#6B4A4A', bar_bg: '#2E1418', bar_text: '#E07B6E' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#2E1418' }, { position: 50, color: '#241012' }, { position: 100, color: '#1A0A0E' }] } },
+      { name: '午夜墨绿', colors: { bg: '#000000', text: '#C9F0D6', accent: '#4ADE80', subtitle: '#86EFAC', pinyin: '#6EE7A0', muted: '#3D5A45', bar_bg: '#051412', bar_text: '#86EFAC' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#0A1F1A' }, { position: 50, color: '#051412' }, { position: 100, color: '#000000' }] } },
+      { name: '暖金黑', colors: { bg: '#121212', text: '#FAFAFA', accent: '#FFD700', subtitle: '#FFD700', pinyin: '#B8860B', muted: '#888888', bar_bg: '#1E1E1E', bar_text: '#FFD700' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#26261C' }, { position: 50, color: '#202014' }, { position: 100, color: '#121212' }] } },
+      { name: '深酒红', colors: { bg: '#18000A', text: '#FFD1DC', accent: '#FF2E63', subtitle: '#FF6B8A', pinyin: '#FB7185', muted: '#6B3A3A', bar_bg: '#280014', bar_text: '#FF6B8A' },
+        background: { type: 'gradient', direction: 'vertical', stops: [{ position: 0, color: '#3D001F' }, { position: 50, color: '#280014' }, { position: 100, color: '#18000A' }] } },
     ];
 
 
