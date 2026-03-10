@@ -392,19 +392,10 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
     print(f"\n  ✅ Generated ({elapsed:.1f}s)")
     print(f"  Image URL: {image_url[:100]}...")
 
-    # 下载图片保存到本地（volces.com CDN 偶发 SSL EOF，加重试）
-    dl_resp = None
-    for dl_attempt in range(3):
-        try:
-            dl_resp = httpx.get(image_url, timeout=60, verify=False)
-            dl_resp.raise_for_status()
-            break
-        except Exception as dl_err:
-            if dl_attempt < 2:
-                print(f"  ⚠️  下载失败 (attempt {dl_attempt + 1}/3): {dl_err}，重试中...")
-                time.sleep(3)
-            else:
-                raise RuntimeError(f"图片下载失败（3 次重试后）: {dl_err}") from dl_err
+    # 下载图片保存到本地（volces.com CDN SSL 不稳定，强制走 HTTP）
+    dl_url = image_url.replace("https://", "http://", 1)
+    dl_resp = httpx.get(dl_url, timeout=60, follow_redirects=True)
+    dl_resp.raise_for_status()
 
     content_type = dl_resp.headers.get("content-type", "image/png")
     ext = mimetypes.guess_extension(content_type.split(";")[0]) or ".png"
