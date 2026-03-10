@@ -17,11 +17,10 @@ voice:
 
 illustrations:
   enabled: true
-  engine: gemini
-  model: gemini-3.1-flash-image-preview
-  fallback_engine: doubao
-  fallback_model: doubao-seedream-5-0-260128
-  style_prompt: "Sketch illustration on cream paper, loose pencil drawing style, simple composition, no text, centered on page, warm tones"
+  engine: doubao
+  model: doubao-seedream-5-0-260128
+  input_image: "assets/huangfu.png"
+  style_prompt: "Bold black marker sketch on white notebook page with spiral binding on left side, rough hand-drawn infographic style, black ink lines with red accent marks, diagram and chibi cartoon character illustration, white paper background, no color fill"
   cache_dir: ".cache/illustrations"
   gen_tool: "tools/image_gen.py"
 

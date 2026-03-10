@@ -239,6 +239,11 @@ def step_illustrations(cfg):
         keywords = scene.get("illustration_keywords", [])
         all_keywords.update(k for k in keywords if k)
 
+    # 解析 input_image 路径（img2img 参考图）
+    input_image = illus_cfg.get("input_image", "")
+    if input_image and not os.path.isabs(input_image):
+        input_image = os.path.join(project_dir, input_image)
+
     # 获取主引擎
     primary_engine = get_image_engine(illus_cfg, gen_tool=gen_tool)
 
@@ -279,10 +284,12 @@ def step_illustrations(cfg):
 
         out_path = os.path.join(cache_dir, f"{safe_name}.png")
         print(f"    引擎: {engine_name}" + (f" ({model})" if model else ""))
-        img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio)
+        if input_image:
+            print(f"    参考图: {os.path.basename(input_image)}")
+        img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image)
 
         if not img_result.success:
-            # 主引擎失败，尝试 fallback
+            # 主引擎失败，尝试 fallback（fallback 不传 input_image，因为可能不支持 img2img）
             if fallback_engine:
                 print(f"    主引擎失败 ({img_result.error})，尝试 fallback ({fallback_engine_name})...")
                 fb_result = fallback_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio)

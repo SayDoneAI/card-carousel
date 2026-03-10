@@ -105,6 +105,9 @@ scenes:
 - `brand` 中只需要写 `topic`，其余字段（logo_char/author/pinyin 等）全部走模板默认值（黄赋）
 - `voice` 和 `illustrations` 固定使用上述配置，不需要用户指定
 - 如果文案很长（超过 15 句），拆成多个 Scene（Scene01_Cards, Scene02_Cards...）
+- **模板选择决定插画配置**：
+  - `minimal-insight` → Gemini 文生图，极简线描黑白+红色点缀
+  - `portrait-notebook` → Doubao 图生图（img2img），以作者照片为参考，黑色马克笔笔记本速写风格
 
 ### Step 2: Run Pipeline
 
@@ -232,7 +235,8 @@ open tools/template_preview.html  # 打开编辑器
 | 主标题 | AI生存指南 ①（企业篇） |
 | 副标题 | 企业人工智能转型三个目标 |
 | 语音 | 同上 |
-| 生图 | 同上 |
+| 生图 | Doubao img2img（以作者照片为参考图） |
+| 画风 | 黑色马克笔笔记本速写，粗线条+红色点缀，Q版人物+图解，白纸底 |
 
 ## Positionable Elements
 

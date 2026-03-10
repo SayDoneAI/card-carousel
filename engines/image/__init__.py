@@ -16,7 +16,8 @@ class ImageResult:
 class ImageEngine(ABC):
     @abstractmethod
     def generate(self, prompt: str, output_path: str,
-                 aspect_ratio: str = "1:1") -> ImageResult: ...
+                 aspect_ratio: str = "1:1",
+                 input_image: str = "") -> ImageResult: ...
 
 
 def get_image_engine(illus_cfg: dict, gen_tool: str = "") -> ImageEngine:
