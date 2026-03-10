@@ -141,6 +141,56 @@ def _is_light_color(rgb):
     return brightness >= 0.5
 
 
+# ── 渐变背景 ─────────────────────────────────────────────────────────
+
+def _interpolate_gradient_color(stops, pct):
+    """在 stops 列表中按百分比线性插值 RGB 颜色"""
+    if not stops:
+        return (0, 0, 0)
+    if pct <= stops[0]["position"]:
+        return _hex_to_rgb(stops[0]["color"], (0, 0, 0))
+    if pct >= stops[-1]["position"]:
+        return _hex_to_rgb(stops[-1]["color"], (0, 0, 0))
+
+    for i in range(len(stops) - 1):
+        s0, s1 = stops[i], stops[i + 1]
+        p0, p1 = s0["position"], s1["position"]
+        if p0 <= pct <= p1:
+            t = (pct - p0) / (p1 - p0) if p1 != p0 else 0
+            c0 = _hex_to_rgb(s0["color"], (0, 0, 0))
+            c1 = _hex_to_rgb(s1["color"], (0, 0, 0))
+            return tuple(int(c0[j] + (c1[j] - c0[j]) * t) for j in range(3))
+
+    return _hex_to_rgb(stops[-1]["color"], (0, 0, 0))
+
+
+def _build_gradient_image(bg_cfg, pixel_width, pixel_height):
+    """用 PIL 生成渐变图片，返回临时文件路径"""
+    import tempfile
+
+    stops = bg_cfg.get("stops", [])
+    if len(stops) < 2:
+        return None
+
+    w, h = pixel_width, pixel_height
+    img = PILImage.new("RGB", (w, h))
+    pixels = img.load()
+
+    direction = bg_cfg.get("direction", "vertical")
+    for y in range(h):
+        for x in range(w):
+            if direction == "horizontal":
+                pct = x / max(w - 1, 1) * 100
+            else:  # vertical
+                pct = y / max(h - 1, 1) * 100
+            pixels[x, y] = _interpolate_gradient_color(stops, pct)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    img.save(tmp.name)
+    tmp.close()
+    return tmp.name
+
+
 # ── 插画加载 ─────────────────────────────────────────────────────────
 
 _BG_CACHE = {}
@@ -224,27 +274,92 @@ def _build_illustration_placeholder(width, height, bg_color, font):
     return VGroup(placeholder_box, placeholder_text)
 
 
-def _build_illustration(keyword, cfg, colors, font, illus_size, max_height=None):
-    """构建插画 Mobject（图片或占位图）"""
+def _parse_aspect_ratio(ratio_str):
+    """解析宽高比字符串（如 '3:4', '16:9'），返回 (w, h) 元组，失败返回 None"""
+    if not isinstance(ratio_str, str) or ":" not in ratio_str:
+        return None
+    parts = ratio_str.split(":")
+    if len(parts) != 2:
+        return None
+    try:
+        w, h = float(parts[0]), float(parts[1])
+        if w > 0 and h > 0:
+            return (w, h)
+    except ValueError:
+        pass
+    return None
+
+
+def _build_illustration(keyword, cfg, colors, font, illus_size, max_height=None,
+                        width_percent=None, aspect_ratio=None):
+    """构建插画 Mobject（图片或占位图）
+
+    Args:
+        illus_size: 插画大小参数（Manim 坐标单位）
+        width_percent: 如果指定，用画布宽度的百分比作为插画宽度
+        aspect_ratio: 宽高比字符串（如 '3:4'），控制插画显示区域比例
+    """
+    actual_width = illus_size
+    if width_percent is not None:
+        actual_width = config.frame_width * width_percent / 100
+
+    # 用宽高比计算目标高度；无宽高比时回退到 illus_size
+    ratio = _parse_aspect_ratio(aspect_ratio)
+    if ratio is not None:
+        target_h = actual_width * ratio[1] / ratio[0]
+    else:
+        target_h = max_height or illus_size
+
     use_placeholder_only = _should_use_placeholder_mode(cfg)
     img_path = None if use_placeholder_only else _load_illustration(keyword)
-    max_h = max_height or min(illus_size * 0.75, 3.0)
 
     if not img_path:
         if not use_placeholder_only:
             return None
-        placeholder_height = max_h
         return _build_illustration_placeholder(
-            width=illus_size,
-            height=placeholder_height,
+            width=actual_width,
+            height=target_h,
             bg_color=colors["bg"],
             font=font,
         )
 
+    # 有宽高比时做 cover 裁剪（PIL），否则缩放适配
+    if ratio is not None:
+        src = PILImage.open(img_path).convert("RGBA")
+        src_w, src_h = src.size
+        # 像素级目标尺寸
+        px_per_unit = config.pixel_width / config.frame_width
+        target_w_px = int(actual_width * px_per_unit)
+        target_h_px = int(target_h * px_per_unit)
+        target_ratio = target_w_px / target_h_px
+        src_ratio = src_w / src_h
+
+        if src_ratio > target_ratio:
+            # 图片更宽，裁左右
+            crop_w = int(src_h * target_ratio)
+            left = (src_w - crop_w) // 2
+            src = src.crop((left, 0, left + crop_w, src_h))
+        else:
+            # 图片更高，裁上下
+            crop_h = int(src_w / target_ratio)
+            top = (src_h - crop_h) // 2
+            src = src.crop((0, top, src_w, top + crop_h))
+
+        src = src.resize((target_w_px, target_h_px), PILImage.LANCZOS)
+
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        src.save(tmp.name, "PNG")
+        tmp.close()
+
+        illus = ImageMobject(tmp.name)
+        illus.scale_to_fit_width(actual_width)
+        return illus
+
     illus = ImageMobject(img_path)
-    illus.scale_to_fit_width(illus_size)
-    if illus.height > max_h:
-        illus.scale_to_fit_height(max_h)
+    illus.scale_to_fit_width(actual_width)
+    if illus.height > target_h:
+        illus.scale_to_fit_height(target_h)
     return illus
 
 
@@ -313,6 +428,10 @@ class GenericCardScene(Scene):
         config.frame_width = FRAME_BASE
         config.frame_height = FRAME_BASE * ratio
 
+        # 同步更新 camera frame（-r 只设像素，camera frame 需手动更新）
+        self.camera.frame_width = config.frame_width
+        self.camera.frame_height = config.frame_height
+
         # ── 基础参数 ──
         colors = _get_colors(cfg)
         font = _get_font(cfg)
@@ -322,14 +441,32 @@ class GenericCardScene(Scene):
 
         self.camera.background_color = colors.get("bg", "#FFFFFF")
 
+        # ── 渐变背景（如果配置了）──
+        bg_cfg = cfg.get("layout", {}).get("background", {})
+        if bg_cfg.get("type") == "gradient":
+            grad_path = _build_gradient_image(bg_cfg, pw, ph)
+            if grad_path:
+                bg_mob = ImageMobject(grad_path)
+                bg_mob.scale_to_fit_width(config.frame_width)
+                bg_mob.move_to(ORIGIN)
+                self.add(bg_mob)
+
         # ── 声明式元素 ──
         elements = cfg.get("positionable_elements", [])
+
+        # 预扫描：毛玻璃蒙版是否启用（影响 portrait 图片的渲染模式）
+        self._blur_overlay_active = any(
+            e.get("type") == "gradient_overlay" and e.get("visible", True)
+            for e in elements
+        )
 
         # 用于追踪 flow_layout 元素的 Mobject 引用
         flow_mobjects = {}  # id -> Mobject
 
-        # 第一遍：渲染固定元素和非动画元素
+        # 第一遍：渲染固定元素和非动画元素（跳过 visible: false）
         for elem in elements:
+            if not elem.get("visible", True):
+                continue
             elem_type = elem.get("type", "text")
             elem_id = elem.get("id", "")
 
@@ -340,6 +477,11 @@ class GenericCardScene(Scene):
 
             elif elem_type == "mask":
                 mob = self._add_mask_element(elem, colors)
+                if mob is not None:
+                    self.add(mob)
+
+            elif elem_type == "gradient_overlay":
+                mob = self._add_gradient_overlay(cfg, pw, ph)
                 if mob is not None:
                     self.add(mob)
 
@@ -387,7 +529,11 @@ class GenericCardScene(Scene):
     # ── 元素构建方法 ─────────────────────────────────────────────────
 
     def _add_image_element(self, elem, cfg):
-        """type: image — 加载图片，按 anchor/width 定位"""
+        """type: image — 加载图片，按 anchor/width 定位
+
+        当毛玻璃蒙版启用 + 图片是背景图时，切换为 Pixelle-Video blur_card 布局：
+        图片居中显示，100% 宽 × 58% 高，object-fit: cover（PIL 裁切）。
+        """
         source = elem.get("source", "")
         rel_path = _resolve_cfg_path(cfg, source) if source else None
         if not rel_path:
@@ -395,7 +541,10 @@ class GenericCardScene(Scene):
 
         full_path = os.path.join(_DIR, rel_path)
         if not os.path.exists(full_path):
-            # 无图时用占位矩形
+            # 无图时：只有全宽背景图才用占位矩形，其他（头像等）直接跳过
+            width_mode = elem.get("width", "full")
+            if width_mode != "full":
+                return None
             fw = config.frame_width
             fh = config.frame_height
             placeholder = Rectangle(
@@ -412,16 +561,147 @@ class GenericCardScene(Scene):
                 )
             return placeholder
 
-        img = ImageMobject(full_path)
-        width_mode = elem.get("width", "full")
-        if width_mode == "full":
-            img.scale_to_fit_width(config.frame_width)
+        # ── 毛玻璃模式：背景图居中 58% 高度（参考 Pixelle-Video .image-center）──
+        is_bg_image = source and "background_image" in source
+        if is_bg_image and getattr(self, "_blur_overlay_active", False):
+            display_h_ratio = 0.58  # Pixelle-Video: height: 58%
+            fw = config.frame_width
+            fh = config.frame_height
+            target_w_px = config.pixel_width
+            target_h_px = int(config.pixel_height * display_h_ratio)
 
+            # cover 裁切：填满目标区域
+            src = PILImage.open(full_path).convert("RGBA")
+            src_w, src_h = src.size
+            target_ratio = target_w_px / target_h_px
+            src_ratio = src_w / src_h
+
+            if src_ratio > target_ratio:
+                new_h = src_h
+                new_w = int(src_h * target_ratio)
+                left = (src_w - new_w) // 2
+                src = src.crop((left, 0, left + new_w, new_h))
+            else:
+                new_w = src_w
+                new_h = int(src_w / target_ratio)
+                top = (src_h - new_h) // 2
+                src = src.crop((0, top, new_w, top + new_h))
+
+            src = src.resize((target_w_px, target_h_px), PILImage.LANCZOS)
+
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            src.save(tmp.name, "PNG")
+            tmp.close()
+
+            img = ImageMobject(tmp.name)
+            img.scale_to_fit_width(fw)
+            img.move_to(ORIGIN)  # 垂直居中
+            return img
+
+        # ── 普通模式 ──
+        width_mode = elem.get("width", "full")
         anchor = elem.get("anchor", "center")
+
+        if width_mode == "full":
+            # cover 裁剪：铺满画布宽度，高度不足时铺满高度（居中裁剪）
+            fw = config.frame_width
+            fh = config.frame_height
+            pw = config.pixel_width
+            ph = config.pixel_height
+            src = PILImage.open(full_path).convert("RGBA")
+            src_w, src_h = src.size
+            canvas_ratio = pw / ph
+            src_ratio = src_w / src_h
+
+            if src_ratio > canvas_ratio:
+                # 图片更宽：以高度为基准裁左右
+                crop_w = int(src_h * canvas_ratio)
+                left = (src_w - crop_w) // 2
+                src = src.crop((left, 0, left + crop_w, src_h))
+            else:
+                # 图片更高：以宽度为基准裁上下
+                crop_h = int(src_w / canvas_ratio)
+                top = (src_h - crop_h) // 2
+                src = src.crop((0, top, src_w, top + crop_h))
+
+            src = src.resize((pw, ph), PILImage.LANCZOS)
+
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            src.save(tmp.name, "PNG")
+            tmp.close()
+
+            img = ImageMobject(tmp.name)
+            img.scale_to_fit_width(fw)
+            if anchor == "top":
+                img.move_to(UP * (fh / 2 - img.height / 2))
+            elif anchor == "bottom":
+                img.move_to(DOWN * (fh / 2 - img.height / 2))
+            # cover 后默认居中，不需要额外定位
+            return img
+
+        # 百分比宽度：支持动态覆盖（extra_fields slider → image.xxx.width_percent）
+        if isinstance(width_mode, str) and width_mode.endswith("%"):
+            pct = float(width_mode[:-1]) / 100.0
+        else:
+            pct = 1.0
+
+        # 检查 cfg 中是否有动态宽度覆盖（如 image.author_avatar.width_percent）
+        elem_id = elem.get("id", "")
+        dyn_pct = _resolve_cfg_path(cfg, f"image.{elem_id}.width_percent")
+        if dyn_pct is not None:
+            pct = float(dyn_pct) / 100.0
+
+        target_w = config.frame_width * pct
+
+        # 检查是否有 aspect_ratio（如 image.author_avatar.aspect_ratio）
+        ar_str = _resolve_cfg_path(cfg, f"image.{elem_id}.aspect_ratio")
+        if not ar_str:
+            ar_str = elem.get("aspect_ratio")
+        ar = _parse_aspect_ratio(ar_str) if ar_str else None
+
+        if ar is not None:
+            # cover 裁剪到指定比例
+            target_h = target_w * ar[1] / ar[0]
+            px_per_unit = config.pixel_width / config.frame_width
+            tw_px = int(target_w * px_per_unit)
+            th_px = int(target_h * px_per_unit)
+
+            src = PILImage.open(full_path).convert("RGBA")
+            src_w, src_h = src.size
+            tr = tw_px / th_px
+            sr = src_w / src_h
+            if sr > tr:
+                crop_w = int(src_h * tr)
+                left = (src_w - crop_w) // 2
+                src = src.crop((left, 0, left + crop_w, src_h))
+            else:
+                crop_h = int(src_w / tr)
+                top = (src_h - crop_h) // 2
+                src = src.crop((0, top, src_w, top + crop_h))
+            src = src.resize((tw_px, th_px), PILImage.LANCZOS)
+
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            src.save(tmp.name, "PNG")
+            tmp.close()
+            img = ImageMobject(tmp.name)
+        else:
+            img = ImageMobject(full_path)
+
+        img.scale_to_fit_width(target_w)
+
         if anchor == "top":
             img.move_to(UP * (config.frame_height / 2 - img.height / 2))
         elif anchor == "bottom":
             img.move_to(DOWN * (config.frame_height / 2 - img.height / 2))
+        elif anchor == "none":
+            pos = get_element_position(
+                cfg, elem_id, config.frame_width, config.frame_height,
+            )
+            if pos is not None:
+                img.move_to([pos[0], pos[1], 0])
 
         return img
 
@@ -483,7 +763,8 @@ class GenericCardScene(Scene):
 
         fs = elem.get("font_size_override", _get_font_size(cfg))
         weight_str = elem.get("weight", "").upper()
-        weight = BOLD if weight_str == "BOLD" else NORMAL
+        weight_map = {"BOLD": BOLD, "HEAVY": HEAVY, "ULTRABOLD": HEAVY}
+        weight = weight_map.get(weight_str, NORMAL)
 
         line_spacing = elem.get("line_spacing", 1.2)
 
@@ -506,16 +787,13 @@ class GenericCardScene(Scene):
         flow = elem.get("flow_layout", False)
 
         if flow:
-            # flow_layout 元素：仅在有显式覆盖时绝对定位
-            if is_explicitly_positioned(cfg, elem_id):
-                pos = get_element_position(
-                    cfg, elem_id, config.frame_width, config.frame_height,
-                )
-                if pos is not None:
-                    mob.move_to([pos[0], pos[1], 0])
-                    mob._has_explicit_position = True
-                else:
-                    mob._has_explicit_position = False
+            # flow_layout 元素：有 default_x/y 或显式覆盖时使用绝对定位
+            pos = get_element_position(
+                cfg, elem_id, config.frame_width, config.frame_height,
+            )
+            if pos is not None:
+                mob.move_to([pos[0], pos[1], 0])
+                mob._has_explicit_position = True
             else:
                 mob._has_explicit_position = False
         else:
@@ -599,6 +877,76 @@ class GenericCardScene(Scene):
 
         return mask_rect
 
+    def _add_gradient_overlay(self, cfg, pixel_width, pixel_height):
+        """type: gradient_overlay — 毛玻璃蒙版（参考 Pixelle-Video image_blur_card）
+
+        Pixelle-Video 做法（CSS）:
+            .bg { filter: blur(24px) brightness(0.9); transform: scale(1.1); }
+
+        Manim 没有 backdrop-filter，所以用 PIL 预生成模糊图片：
+        1. 有背景图时：加载图 → cover 裁切到画布 → blur(24px) → brightness(0.9)
+           → scale(1.1) 后中心裁切（避免模糊边缘留白）→ 全屏渲染
+        2. 无背景图时：返回 None（纯色/渐变背景不需要毛玻璃）
+        """
+        import tempfile
+        from PIL import ImageFilter, ImageEnhance
+
+        bg_image_path = _resolve_cfg_path(cfg, "layout.background_image")
+        if not bg_image_path:
+            return None
+
+        full_path = os.path.join(_DIR, bg_image_path)
+        if not os.path.exists(full_path):
+            return None
+
+        w, h = pixel_width, pixel_height
+
+        # ── Step 1: 加载图片，cover 模式裁切到画布比例 ──
+        src = PILImage.open(full_path).convert("RGBA")
+        src_w, src_h = src.size
+        canvas_ratio = w / h
+        src_ratio = src_w / src_h
+
+        if src_ratio > canvas_ratio:
+            # 图片更宽：按高度适配，裁左右
+            new_h = src_h
+            new_w = int(src_h * canvas_ratio)
+            left = (src_w - new_w) // 2
+            src = src.crop((left, 0, left + new_w, new_h))
+        else:
+            # 图片更高：按宽度适配，裁上下
+            new_w = src_w
+            new_h = int(src_w / canvas_ratio)
+            top = (src_h - new_h) // 2
+            src = src.crop((0, top, new_w, top + new_h))
+
+        # ── Step 2: scale(1.1) — 放大后中心裁切（遮盖模糊边缘）──
+        scaled_w = int(w * 1.1)
+        scaled_h = int(h * 1.1)
+        img = src.resize((scaled_w, scaled_h), PILImage.LANCZOS)
+
+        # ── Step 3: blur(24px) — Pixelle-Video 用的 24px ──
+        # 像素比例换算：Pixelle 基于 1080px 宽用 blur(24)
+        blur_radius = 24 * (w / 1080)
+        img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+
+        # ── Step 4: brightness(0.9) ──
+        img = ImageEnhance.Brightness(img).enhance(0.9)
+
+        # ── Step 5: 中心裁切回画布尺寸 ──
+        cx = (scaled_w - w) // 2
+        cy = (scaled_h - h) // 2
+        img = img.crop((cx, cy, cx + w, cy + h))
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        img.save(tmp.name, "PNG")
+        tmp.close()
+
+        overlay = ImageMobject(tmp.name)
+        overlay.scale_to_fit_width(config.frame_width)
+        overlay.move_to(ORIGIN)
+        return overlay
+
     # ── 动画循环 ─────────────────────────────────────────────────────
 
     def _run_animation_loop(
@@ -620,20 +968,24 @@ class GenericCardScene(Scene):
         max_chars = cfg.get("layout", {}).get("max_chars_per_card", 18)
         sentences, keywords = split_long_sentences(raw_sentences, keywords, max_chars)
 
-        # 查找 illustration / caption 元素声明
+        # 查找 illustration / caption 元素声明（仅 visible 的）
         illus_elem = None
         caption_elem = None
         for elem in elements:
+            if not elem.get("visible", True):
+                continue
             etype = elem.get("type", "text")
             if etype == "illustration":
                 illus_elem = elem
             elif etype == "caption":
                 caption_elem = elem
 
-        # 查找 flow_layout text 元素（如 pinyin）用于动态跟随
+        # 查找 flow_layout text 元素（如 pinyin）用于动态跟随（仅 visible 的）
         flow_text_elems = [
             e for e in elements
-            if e.get("type", "text") == "text" and e.get("flow_layout", False)
+            if e.get("visible", True)
+            and e.get("type", "text") == "text"
+            and e.get("flow_layout", False)
         ]
 
         prev_caption = None
@@ -675,6 +1027,11 @@ class GenericCardScene(Scene):
                 title_anchor = mob
                 break
 
+        # ── 动画模式（从 animation 配置读取）──
+        anim_cfg = cfg.get("animation", {})
+        illus_anim = anim_cfg.get("illustration", "slide")   # slide / fade / none
+        caption_anim = anim_cfg.get("caption", "replace")    # replace / fade / typewriter
+
         for i, sentence in enumerate(sentences):
             kw = keywords[i] if i < len(keywords) else None
             need_new_illus = (kw is not None) and (kw != prev_kw)
@@ -710,7 +1067,12 @@ class GenericCardScene(Scene):
             # ── 插画 ──
             illus = None
             if need_new_illus and illus_elem is not None:
-                illus = _build_illustration(kw, cfg, colors, font, illus_size)
+                wp = illus_elem.get("width_percent")
+                ar = illus_elem.get("aspect_ratio")
+                illus = _build_illustration(
+                    kw, cfg, colors, font, illus_size,
+                    width_percent=wp, aspect_ratio=ar,
+                )
                 if illus is not None:
                     illus_id = illus_elem.get("id", "illustration")
                     illus_pos = get_element_position(
@@ -728,29 +1090,65 @@ class GenericCardScene(Scene):
                         illus.next_to(anchor_mob, DOWN, buff=0.4)
                         illus.set_x(0)
 
-            # ── 动画 ──
-            if prev_caption is not None:
-                self.remove(prev_caption)
-            self.add(caption_text)
-
-            if need_new_illus and illus is not None:
-                animations = []
-                if prev_illus is not None:
-                    animations.append(
-                        prev_illus.animate.shift(LEFT * SLIDE_DISTANCE)
+            # ── 字幕动画 ──
+            anim_time = 0
+            if caption_anim == "fade":
+                if prev_caption is not None:
+                    self.play(
+                        FadeOut(prev_caption, run_time=0.25),
+                        FadeIn(caption_text, run_time=0.25),
                     )
-                illus.shift(RIGHT * SLIDE_DISTANCE)
-                animations.append(
-                    illus.animate.shift(LEFT * SLIDE_DISTANCE)
-                )
-                self.play(*animations, run_time=0.5)
-                if prev_illus is not None:
-                    self.remove(prev_illus)
-                tl.sync(self, 0.5)
+                else:
+                    self.play(FadeIn(caption_text, run_time=0.25))
+                anim_time += 0.25
+            elif caption_anim == "typewriter":
+                if prev_caption is not None:
+                    self.remove(prev_caption)
+                self.play(AddTextLetterByLetter(caption_text, run_time=0.4))
+                anim_time += 0.4
+            else:
+                # replace（默认）：直接替换
+                if prev_caption is not None:
+                    self.remove(prev_caption)
+                self.add(caption_text)
+
+            # ── 插画动画 ──
+            if need_new_illus and illus is not None:
+                if illus_anim == "slide":
+                    animations = []
+                    if prev_illus is not None:
+                        animations.append(
+                            prev_illus.animate.shift(LEFT * SLIDE_DISTANCE)
+                        )
+                    illus.shift(RIGHT * SLIDE_DISTANCE)
+                    animations.append(
+                        illus.animate.shift(LEFT * SLIDE_DISTANCE)
+                    )
+                    self.play(*animations, run_time=0.5)
+                    if prev_illus is not None:
+                        self.remove(prev_illus)
+                    anim_time += 0.5
+                elif illus_anim == "fade":
+                    if prev_illus is not None:
+                        self.play(
+                            FadeOut(prev_illus, run_time=0.4),
+                            FadeIn(illus, run_time=0.4),
+                        )
+                        self.remove(prev_illus)
+                    else:
+                        self.play(FadeIn(illus, run_time=0.4))
+                    anim_time += 0.4
+                else:
+                    # none：直接替换
+                    if prev_illus is not None:
+                        self.remove(prev_illus)
+                    self.add(illus)
+
+                tl.sync(self, anim_time)
                 prev_illus = illus
                 prev_kw = kw
             else:
-                tl.sync(self, 0)
+                tl.sync(self, anim_time)
 
             prev_caption = caption_text
 

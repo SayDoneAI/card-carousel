@@ -59,6 +59,7 @@ _CACHE_DIR = PROJECT_DIR / ".cache"
 _CACHE_ILLUSTRATIONS_DIR = _CACHE_DIR / "illustrations"
 _PREVIEW_ASSETS_DIR = _CACHE_DIR / "preview_assets"
 _ASSETS_ILLUSTRATIONS_DIR = PROJECT_DIR / "assets" / "illustrations"
+_UPLOADS_DIR = PROJECT_DIR / "assets" / "uploads"
 
 
 def _client_error_message(default_msg: str, exc: Exception | None = None) -> str:
@@ -637,6 +638,48 @@ def _write_temp_yaml(template: str, params: dict) -> str:
             # 若获取模板信息失败，使用 sanitize_positions 的结果（类型安全即可）
             cfg["layout"]["positions"] = sanitized
 
+    # 确保 positionable_elements 可写（后续 visibility 和 font_size 覆盖共用）
+    pe_list = cfg.get("positionable_elements")
+    if not pe_list:
+        pe_list = template_defaults.get("positionable_elements", [])
+        if pe_list:
+            cfg["positionable_elements"] = [dict(e) for e in pe_list]
+            pe_list = cfg["positionable_elements"]
+
+    # 应用 element_visibility 覆盖到 positionable_elements
+    elem_vis = params.get("element_visibility")
+    if isinstance(elem_vis, dict) and elem_vis and pe_list:
+        for elem in pe_list:
+            eid = elem.get("id", "")
+            if eid in elem_vis:
+                elem["visible"] = elem_vis[eid]
+
+    # 应用 element_font_sizes 覆盖到 positionable_elements
+    elem_fs = params.get("element_font_sizes")
+    if isinstance(elem_fs, dict) and elem_fs and pe_list:
+        for elem in pe_list:
+            eid = elem.get("id", "")
+            if eid in elem_fs:
+                elem["font_size_override"] = int(elem_fs[eid])
+
+    # 应用 animation 参数覆盖
+    anim_params = params.get("animation")
+    if isinstance(anim_params, dict):
+        cfg["animation"] = anim_params
+
+    # 应用 image 参数覆盖（如 image.author_avatar.width_percent）
+    image_params = params.get("image")
+    if isinstance(image_params, dict):
+        cfg["image"] = image_params
+
+    # 应用 illustration 参数覆盖（如 aspect_ratio）
+    illus_params = params.get("illustration")
+    if isinstance(illus_params, dict) and pe_list:
+        for elem in pe_list:
+            if elem.get("type") == "illustration":
+                if "aspect_ratio" in illus_params:
+                    elem["aspect_ratio"] = str(illus_params["aspect_ratio"])
+
     fd, path = tempfile.mkstemp(suffix=".yaml", prefix="cc_preview_")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         yaml.dump(cfg, f, allow_unicode=True)
@@ -668,11 +711,18 @@ def _render_frame(template: str, params: dict) -> bytes:
     tmp_yaml = None
     tmp_media = None
     try:
-        # 1. 写临时 YAML
-        tmp_yaml = _write_temp_yaml(template, params)
-        log.info("临时配置: %s", tmp_yaml)
+        # 1. 获取真实画布尺寸（用于 -r 参数确保 Manim camera 初始化正确）
+        template_defaults = _get_template_defaults(template)
+        canvas = params.get("canvas") or template_defaults.get("canvas", {})
+        pw = canvas.get("pixel_width", 1080)
+        ph = canvas.get("pixel_height",
+                        template_defaults.get("layout", {}).get("pixel_height", 1440))
 
-        # 2. 用 load_config 获取 manim_script 路径
+        # 2. 写临时 YAML（保持原始分辨率）
+        tmp_yaml = _write_temp_yaml(template, params)
+        log.info("临时配置: %s (画布 %dx%d)", tmp_yaml, pw, ph)
+
+        # 3. 用 load_config 获取 manim_script 路径
         from core.config import load_config
         os.environ["CARD_CAROUSEL_PROJECT_DIR"] = str(PROJECT_DIR)
         cfg = load_config(tmp_yaml)
@@ -680,18 +730,18 @@ def _render_frame(template: str, params: dict) -> bytes:
         if not os.path.isfile(manim_script):
             raise RuntimeError(f"找不到 Manim 脚本: {manim_script}")
 
-        # 3. 找到 Scene 类名
+        # 4. 找到 Scene 类名
         scene_class = _resolve_scene_class(template, manim_script)
         log.info("Scene 类名: %s", scene_class)
 
-        # 4. 临时 media 输出目录
+        # 5. 临时 media 输出目录
         tmp_media = tempfile.mkdtemp(prefix="cc_media_")
 
-        # 5. 组装 manim 命令
+        # 6. 组装 manim 命令（-r 传原始画布尺寸，确保 camera 初始化正确）
         cmd = [
             sys.executable, "-m", "manim",
             "-s",                     # screenshot / last-frame 模式
-            "--quality", "l",
+            "-r", f"{pw},{ph}",       # Manim -r 格式: W,H（原始分辨率）
             "--format", "png",
             "--media_dir", tmp_media,
             "-o", "preview_frame",
@@ -752,8 +802,18 @@ def _render_frame(template: str, params: dict) -> bytes:
             raise RuntimeError("Manim 完成但找不到输出 PNG 文件")
 
         log.info("找到 PNG: %s", png_path)
-        with open(png_path, "rb") as f:
-            return f.read()
+
+        # PIL 缩小到预览尺寸（保持比例，减小传输体积）
+        from PIL import Image as PILImage
+        import io
+        preview_w = 540
+        preview_h = int(preview_w * ph / pw)
+        img = PILImage.open(png_path)
+        if img.width > preview_w:
+            img = img.resize((preview_w, preview_h), PILImage.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
 
     finally:
         # 清理临时文件
@@ -893,6 +953,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._handle_template_manifest(parsed.query)
         elif path == "/api/health":
             self._send_json(200, {"status": "ok", "port": PORT})
+        elif path == "/api/list-images":
+            self._handle_list_images()
         else:
             self._serve_static(path)
 
@@ -949,6 +1011,23 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             log.exception("list_templates 失败")
             self._send_error_json(500, _client_error_message("获取模板列表失败"))
+
+    def _handle_list_images(self):
+        """GET /api/list-images — 扫描 assets/ 目录返回可用图片列表"""
+        try:
+            assets_dir = os.path.join(PROJECT_DIR, "assets")
+            images = []
+            if os.path.isdir(assets_dir):
+                img_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+                for root, _dirs, files in os.walk(assets_dir):
+                    for fname in sorted(files):
+                        if os.path.splitext(fname)[1].lower() in img_exts:
+                            rel = os.path.relpath(os.path.join(root, fname), PROJECT_DIR)
+                            images.append(rel)
+            self._send_json(200, {"images": sorted(images)})
+        except Exception:
+            log.exception("list-images 失败")
+            self._send_error_json(500, _client_error_message("获取图片列表失败"))
 
     def _handle_template_manifest(self, query_string: str):
         """GET /api/template_manifest?template=xxx — 返回模板的 positionable_elements 元数据"""
@@ -1016,6 +1095,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/render_frame":
             self._handle_render_frame()
+        elif path == "/api/upload-image":
+            self._handle_upload_image()
         else:
             self._send_error_json(404, f"未知 API: {path}")
 
@@ -1073,6 +1154,67 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._send_error_json(500, _client_error_message("渲染失败"))
         finally:
             _render_lock.release()
+
+    def _handle_upload_image(self):
+        """POST /api/upload-image — 接收图片文件，保存到 assets/uploads/，返回相对路径"""
+        import cgi
+
+        content_type = self.headers.get("Content-Type", "")
+        if "multipart/form-data" not in content_type:
+            self._send_error_json(400, "需要 multipart/form-data 格式")
+            return
+
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            self._send_error_json(400, "Content-Length 必须是整数")
+            return
+
+        if length == 0 or length > 20 * 1024 * 1024:  # 最大 20MB
+            self._send_error_json(400, "文件大小必须在 1 字节到 20MB 之间")
+            return
+
+        try:
+            form = cgi.FieldStorage(
+                fp=self.rfile,
+                headers=self.headers,
+                environ={
+                    "REQUEST_METHOD": "POST",
+                    "CONTENT_TYPE": content_type,
+                },
+            )
+            file_item = form["file"]
+            if not file_item.filename:
+                self._send_error_json(400, "未找到上传文件")
+                return
+
+            # 安全文件名
+            original_name = os.path.basename(file_item.filename)
+            name, ext = os.path.splitext(original_name)
+            ext = ext.lower()
+            if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+                self._send_error_json(400, f"不支持的图片格式: {ext}")
+                return
+
+            safe_name = re.sub(r"[^\w\-.]", "_", name)
+            # 避免重名：加时间戳
+            ts = int(time.time())
+            filename = f"{safe_name}_{ts}{ext}"
+
+            _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            dest = _UPLOADS_DIR / filename
+            with open(dest, "wb") as f:
+                f.write(file_item.file.read())
+
+            rel_path = f"assets/uploads/{filename}"
+            log.info("图片上传成功: %s", rel_path)
+            self._send_json(200, {"path": rel_path})
+
+        except KeyError:
+            self._send_error_json(400, "请求中缺少 'file' 字段")
+        except Exception:
+            log.exception("upload-image 失败")
+            self._send_error_json(500, _client_error_message("上传失败"))
 
 
 # ── 入口 ──────────────────────────────────────────────────────────────────────

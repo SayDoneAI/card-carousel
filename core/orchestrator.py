@@ -226,6 +226,13 @@ def step_illustrations(cfg):
     print(f"  资源目录: {assets_dir}")
     print("=" * 50)
 
+    # 从模板 positionable_elements 获取插画宽高比
+    illus_aspect_ratio = "1:1"
+    for pe in cfg.get("positionable_elements", []):
+        if pe.get("type") == "illustration":
+            illus_aspect_ratio = pe.get("aspect_ratio", "1:1")
+            break
+
     # 收集所有唯一关键词
     all_keywords = set()
     for scene in cfg["scenes"]:
@@ -272,13 +279,13 @@ def step_illustrations(cfg):
 
         out_path = os.path.join(cache_dir, f"{safe_name}.png")
         print(f"    引擎: {engine_name}" + (f" ({model})" if model else ""))
-        img_result = primary_engine.generate(prompt, out_path)
+        img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio)
 
         if not img_result.success:
             # 主引擎失败，尝试 fallback
             if fallback_engine:
                 print(f"    主引擎失败 ({img_result.error})，尝试 fallback ({fallback_engine_name})...")
-                fb_result = fallback_engine.generate(prompt, out_path)
+                fb_result = fallback_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio)
                 if not fb_result.success:
                     print(f"    fallback 生成失败: {fb_result.error}")
                     failed += 1

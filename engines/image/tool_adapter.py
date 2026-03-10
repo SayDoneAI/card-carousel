@@ -15,7 +15,8 @@ class ToolAdapterEngine(ImageEngine):
         self.model = model
         self.gen_tool = gen_tool
 
-    def generate(self, prompt: str, output_path: str) -> ImageResult:
+    def generate(self, prompt: str, output_path: str,
+                 aspect_ratio: str = "1:1") -> ImageResult:
         # output_path 在此引擎里不直接使用（工具自行决定文件名）
         # 调用约定与原 _generate_with_tool 完全一致
         import os
@@ -25,7 +26,7 @@ class ToolAdapterEngine(ImageEngine):
         cmd = [
             sys.executable, self.gen_tool,
             prompt,
-            "--aspect_ratio", "1:1",
+            "--aspect_ratio", aspect_ratio,
             "-o", cache_dir,
             "--filename", safe_name,
             "--engine", self.engine,

@@ -65,7 +65,7 @@
     #preview-img {
       max-width: 100%;
       max-height: 100%;
-      border-radius: 8px;
+      border-radius: 0;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
       object-fit: contain;
       display: none;
@@ -689,16 +689,16 @@
 
     // 一键配色方案（7 色：bg, text, accent, pinyin, muted, bar_bg, bar_text）
     const COLOR_PALETTES = [
-      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#000000', accent: '#C0392B', pinyin: '#000000', muted: '#999999', bar_bg: '#DBDADB', bar_text: '#1A1A1A' } },
-      { name: '深色模式', colors: { bg: '#1A1A1A', text: '#FFFFFF', accent: '#3B82F6', pinyin: '#E5E7EB', muted: '#6B7280', bar_bg: '#374151', bar_text: '#F9FAFB' } },
+      { name: '经典黑白', colors: { bg: '#FFFFFF', text: '#1A1A1A', accent: '#E63946', pinyin: '#457B9D', muted: '#A8A8A8', bar_bg: '#F1FAEE', bar_text: '#1D3557' } },
+      { name: '赛博暗夜', colors: { bg: '#0F0F12', text: '#E0E0E0', accent: '#00F5D4', pinyin: '#A0A0A5', muted: '#6B6B70', bar_bg: '#1A1A2E', bar_text: '#00F5D4' } },
+      { name: '深邃星空', colors: { bg: '#0A192F', text: '#E6F1FF', accent: '#64FFDA', pinyin: '#8892B0', muted: '#495670', bar_bg: '#112240', bar_text: '#64FFDA' } },
+      { name: '暗紫霓虹', colors: { bg: '#1A0A2E', text: '#F0E6FF', accent: '#A855F7', pinyin: '#7C3AED', muted: '#6B5B7B', bar_bg: '#2D1B4E', bar_text: '#C084FC' } },
+      { name: '温润墨绿', colors: { bg: '#1B2D2A', text: '#E8F0ED', accent: '#4ADE80', pinyin: '#86EFAC', muted: '#6B8F80', bar_bg: '#0F1F1C', bar_text: '#4ADE80' } },
+      { name: '暖金黑', colors: { bg: '#121212', text: '#FAFAFA', accent: '#FFD700', pinyin: '#B8860B', muted: '#888888', bar_bg: '#1E1E1E', bar_text: '#FFD700' } },
+      { name: '玫瑰暗红', colors: { bg: '#1A0000', text: '#FFE4E6', accent: '#FF2E63', pinyin: '#FB7185', muted: '#6B3A3A', bar_bg: '#2D0A0A', bar_text: '#FF6B8A' } },
       { name: '温暖米色', colors: { bg: '#F5F1E8', text: '#2C2416', accent: '#D97706', pinyin: '#78716C', muted: '#A8A29E', bar_bg: '#E7E5E4', bar_text: '#44403C' } },
-      { name: '清新绿', colors: { bg: '#F0FDF4', text: '#14532D', accent: '#10B981', pinyin: '#047857', muted: '#9CA3AF', bar_bg: '#D1FAE5', bar_text: '#065F46' } },
-      { name: '优雅紫', colors: { bg: '#FAF5FF', text: '#4C1D95', accent: '#8B5CF6', pinyin: '#7C3AED', muted: '#A78BFA', bar_bg: '#EDE9FE', bar_text: '#5B21B6' } },
-      { name: '科技蓝', colors: { bg: '#EFF6FF', text: '#1E3A8A', accent: '#2563EB', pinyin: '#1D4ED8', muted: '#93C5FD', bar_bg: '#DBEAFE', bar_text: '#1E40AF' } },
-      { name: '暖橙', colors: { bg: '#FFF7ED', text: '#7C2D12', accent: '#EA580C', pinyin: '#C2410C', muted: '#FDBA74', bar_bg: '#FED7AA', bar_text: '#9A3412' } },
-      { name: '冷灰', colors: { bg: '#F8FAFC', text: '#0F172A', accent: '#64748B', pinyin: '#475569', muted: '#94A3B8', bar_bg: '#E2E8F0', bar_text: '#334155' } },
-      { name: '粉红', colors: { bg: '#FDF2F8', text: '#831843', accent: '#EC4899', pinyin: '#DB2777', muted: '#F9A8D4', bar_bg: '#FCE7F3', bar_text: '#9D174D' } },
-      { name: '青色', colors: { bg: '#ECFEFF', text: '#164E63', accent: '#06B6D4', pinyin: '#0891B2', muted: '#67E8F9', bar_bg: '#CFFAFE', bar_text: '#155E75' } }
+      { name: '冷灰极简', colors: { bg: '#F8FAFC', text: '#0F172A', accent: '#3B82F6', pinyin: '#475569', muted: '#94A3B8', bar_bg: '#E2E8F0', bar_text: '#334155' } },
+      { name: '青瓷', colors: { bg: '#0D1B2A', text: '#E0FBFC', accent: '#06B6D4', pinyin: '#22D3EE', muted: '#5B7B8A', bar_bg: '#1B2838', bar_text: '#06B6D4' } }
     ];
 
 
@@ -870,7 +870,8 @@
     async function loadTemplateManifest(template) {
       try {
         const manifest = await fetchTemplateManifest(template);
-        currentManifestElements = manifest.elements;
+        // 深拷贝元素，避免修改 visible 时污染缓存
+        currentManifestElements = manifest.elements.map(el => ({ ...el }));
         currentManifestColorPalettes = manifest.color_palettes;
         currentManifestCanvas = manifest.canvas;
       } catch (e) {
@@ -889,6 +890,16 @@
         if (validIds.has(id)) cleaned[id] = currentParams.positions[id];
       }
       currentParams.positions = cleaned;
+
+      // 恢复 element_visibility 到 manifest 元素
+      const vis = currentParams.element_visibility;
+      if (vis && typeof vis === 'object') {
+        for (const el of currentManifestElements) {
+          if (el.id in vis) {
+            el.visible = vis[el.id];
+          }
+        }
+      }
     }
 
     function deepClone(obj) {
@@ -1052,6 +1063,10 @@
         }
       }
       currentParams.layout.pixel_height = defaults.layout.pixel_height;
+      // 仅当 localStorage 没有 background 时从 defaults 恢复（保留用户的配色方案选择）
+      if (defaults.layout && defaults.layout.background && !currentParams.layout.background) {
+        currentParams.layout.background = defaults.layout.background;
+      }
       isModified = false;
       updateRenderButton();
     }
@@ -1098,39 +1113,109 @@
         return;
       }
 
-      // 1. 卡片内容（文字 textarea）
-      ui.panelBody.appendChild(renderContentSection());
-
-      // 2. 文字样式（文字大小 + 文字颜色 + 每行字数只读）
-      ui.panelBody.appendChild(renderStyleSection());
-
-      // 3. 按元素聚合区块：遍历 manifest 元素，每个生成一个折叠卡片
+      // ── 二级分组面板 ──
+      // 一级（默认展开）：核心内容元素
+      // 二级（默认折叠）：装饰元素、品牌信息、背景设置
       if (currentManifestElements && currentManifestElements.length > 0) {
-        currentManifestElements.forEach(el => {
-          ui.panelBody.appendChild(renderElementSection(el));
-        });
-      }
+        const primaryIds = ['topic', 'subtitle', 'illustration', 'caption'];
+        const secondaryIds = ['author_name', 'author_avatar', 'logo', 'pinyin_text', 'disclaimer', 'footer_bar'];
+        const bgLayerIds = ['portrait', 'gradient_overlay'];
 
-      // 4. 显示未被元素声明关联的品牌字段（通用兜底）
-      const mappedBrandKeys = new Set();
-      currentManifestElements.forEach(el => {
-        if (el.brand_field && el.brand_field.key) {
-          mappedBrandKeys.add(el.brand_field.key);
+        const byId = {};
+        currentManifestElements.forEach(el => { byId[el.id] = el; });
+
+        // 一级：内容元素（折叠组）
+        const primaryEls = primaryIds.filter(id => byId[id]);
+        if (primaryEls.length > 0) {
+          const group = renderGroupSection('内容元素', true);
+          primaryEls.forEach(id => {
+            group.content.appendChild(renderElementSection(byId[id]));
+          });
+          ui.panelBody.appendChild(group.section);
         }
-      });
-      mappedBrandKeys.add('footer_tags'); // footer_tags 在 footer_bar 元素中处理
-      const unmappedBrandFields = Object.keys(currentParams.brand)
-        .filter(key => isScalarValue(currentParams.brand[key]) && !mappedBrandKeys.has(key))
-        .map(key => ({ label: key, key: `brand.${key}`, type: 'text' }));
-      if (unmappedBrandFields.length > 0) {
-        ui.panelBody.appendChild(createSection('其他品牌参数', unmappedBrandFields));
+
+        // 二级：品牌 & 装饰（折叠组）
+        const secondaryEls = secondaryIds.filter(id => byId[id]);
+        if (secondaryEls.length > 0) {
+          const group = renderGroupSection('品牌 & 装饰', true);
+          secondaryEls.forEach(id => {
+            group.content.appendChild(renderElementSection(byId[id]));
+          });
+          // 未关联品牌字段也放这里
+          const mappedBrandKeys = new Set();
+          currentManifestElements.forEach(el => {
+            if (el.brand_field && el.brand_field.key) mappedBrandKeys.add(el.brand_field.key);
+          });
+          mappedBrandKeys.add('footer_tags');
+          const unmappedBrandFields = Object.keys(currentParams.brand)
+            .filter(key => isScalarValue(currentParams.brand[key]) && !mappedBrandKeys.has(key))
+            .map(key => ({ label: key, key: `brand.${key}`, type: 'text' }));
+          if (unmappedBrandFields.length > 0) {
+            group.content.appendChild(createSection('其他品牌参数', unmappedBrandFields));
+          }
+          ui.panelBody.appendChild(group.section);
+        }
+
+        // 三级：背景设置（折叠组）
+        const bgEls = bgLayerIds.filter(id => byId[id]);
+        if (bgEls.length > 0 || true) {
+          const group = renderGroupSection('背景设置', true);
+          bgEls.forEach(id => {
+            group.content.appendChild(renderElementSection(byId[id]));
+          });
+          group.content.appendChild(renderBackgroundAndPaletteSection());
+          ui.panelBody.appendChild(group.section);
+        }
+      } else {
+        ui.panelBody.appendChild(renderBackgroundAndPaletteSection());
       }
+    }
 
-      // 5. 动画效果
-      ui.panelBody.appendChild(renderAnimationSection());
+    // ── 折叠分组状态记忆 ──────────────────────────────────────────────────────
+    const _groupCollapsedState = {};  // title -> boolean
 
-      // 6. 背景 & 一键配色
-      ui.panelBody.appendChild(renderBackgroundAndPaletteSection());
+    function renderGroupSection(title, defaultCollapsed) {
+      // 使用记忆的状态，首次使用默认值
+      if (!(title in _groupCollapsedState)) {
+        _groupCollapsedState[title] = defaultCollapsed;
+      }
+      const isCollapsed = _groupCollapsedState[title];
+
+      const section = document.createElement('div');
+      section.className = 'section';
+      section.style.border = '1px solid var(--line)';
+      section.style.borderRadius = '8px';
+      section.style.overflow = 'hidden';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      header.style.background = '#f1f5f9';
+      header.style.marginBottom = '0';
+      header.style.borderRadius = '0';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'section-title';
+      titleSpan.textContent = title;
+      titleSpan.style.fontSize = '13px';
+      const arrowSpan = document.createElement('span');
+      arrowSpan.textContent = isCollapsed ? '▶' : '▼';
+      header.appendChild(titleSpan);
+      header.appendChild(arrowSpan);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+      content.style.padding = '8px';
+      if (isCollapsed) content.classList.add('collapsed');
+
+      header.addEventListener('click', () => {
+        content.classList.toggle('collapsed');
+        const nowCollapsed = content.classList.contains('collapsed');
+        arrowSpan.textContent = nowCollapsed ? '▶' : '▼';
+        _groupCollapsedState[title] = nowCollapsed;
+      });
+
+      section.appendChild(header);
+      section.appendChild(content);
+      return { section, content };
     }
 
     // ── 单个元素聚合区块 ──────────────────────────────────────────────────────
@@ -1147,9 +1232,12 @@
 
       const header = document.createElement('div');
       header.className = 'section-header';
+      const isHidden = el.visible === false;
       const titleSpan = document.createElement('span');
       titleSpan.className = 'section-title';
-      titleSpan.textContent = `📍 ${el.label || el.id}`;
+      titleSpan.textContent = `📍 ${el.label || el.id}` + (isHidden ? ' (已隐藏)' : '');
+      if (isHidden) titleSpan.style.color = '#999';
+
       const arrowSpan = document.createElement('span');
       arrowSpan.textContent = '▼';
       header.appendChild(titleSpan);
@@ -1157,6 +1245,163 @@
 
       const content = document.createElement('div');
       content.className = 'section-content';
+
+      // 显示/隐藏 toggle 按钮（放在 content 区域第一行，不在 header 里）
+      const toggleRow = document.createElement('div');
+      toggleRow.style.cssText = 'padding:6px 12px;display:flex;align-items:center;gap:8px;';
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = isHidden ? '启用显示' : '隐藏此元素';
+      toggleBtn.style.cssText = 'font-size:12px;padding:3px 12px;border-radius:4px;border:1px solid ' + (isHidden ? '#4caf50' : '#ccc') + ';cursor:pointer;background:' + (isHidden ? '#e8f5e9' : '#fff') + ';color:' + (isHidden ? '#2e7d32' : '#666') + ';';
+      toggleBtn.addEventListener('click', () => {
+        const newVisible = el.visible === false;
+        el.visible = newVisible;
+        if (!currentParams.element_visibility) {
+          currentParams.element_visibility = {};
+        }
+        currentParams.element_visibility[el.id] = newVisible;
+        saveParams();
+        renderParamPanel();
+      });
+      toggleRow.appendChild(toggleBtn);
+      if (isHidden) {
+        const hint = document.createElement('span');
+        hint.textContent = '渲染时不显示此元素';
+        hint.style.cssText = 'font-size:11px;color:#999;';
+        toggleRow.appendChild(hint);
+      }
+      content.appendChild(toggleRow);
+
+      // 图片类型：从 assets/ 选择图片（背景图片 + 作者头像等）
+      if (el.type === 'image' && el.source) {
+        const sourceParts = el.source.split('.');
+        const layoutKey = sourceParts.length > 1 ? sourceParts[sourceParts.length - 1] : null;
+        if (layoutKey) {
+          const imgRow = document.createElement('div');
+          imgRow.style.cssText = 'padding:6px 12px;display:flex;flex-direction:column;gap:6px;';
+
+          const imgLabel = document.createElement('div');
+          imgLabel.className = 'card-field-label';
+          imgLabel.textContent = '选择图片';
+          imgRow.appendChild(imgLabel);
+
+          const controlRow = document.createElement('div');
+          controlRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+          const select = document.createElement('select');
+          select.style.cssText = 'font-size:12px;flex:1;padding:4px;border-radius:4px;border:1px solid #ccc;';
+
+          // 加载图片列表
+          const curPath = (currentParams.layout && currentParams.layout[layoutKey]) || '';
+          const emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.textContent = '— 无 —';
+          select.appendChild(emptyOpt);
+
+          fetch(`${API_BASE}/api/list-images`)
+            .then(r => r.json())
+            .then(data => {
+              (data.images || []).forEach(imgPath => {
+                const opt = document.createElement('option');
+                opt.value = imgPath;
+                opt.textContent = imgPath.replace(/^assets\//, '');
+                if (imgPath === curPath) opt.selected = true;
+                select.appendChild(opt);
+              });
+            })
+            .catch(() => {});
+
+          select.addEventListener('change', () => {
+            if (!currentParams.layout) currentParams.layout = {};
+            currentParams.layout[layoutKey] = select.value;
+            if (select.value) {
+              el.visible = true;
+              if (!currentParams.element_visibility) currentParams.element_visibility = {};
+              currentParams.element_visibility[el.id] = true;
+            }
+            saveParams();
+            renderParamPanel();
+          });
+
+          controlRow.appendChild(select);
+          imgRow.appendChild(controlRow);
+          content.appendChild(imgRow);
+        }
+      }
+
+      // 字幕元素：嵌入卡片内容 textarea（原"卡片内容"独立区块合并到此处）
+      if (el.type === 'caption') {
+        // 确保至少有一个场景
+        if (currentScenes.length === 0) {
+          currentScenes.push({
+            name: getDefaultSceneNameForTemplate(currentTemplate),
+            narration: '示例文字',
+            illustration_keywords: ['水墨画']
+          });
+        }
+        const scene = currentScenes[0];
+        const narrationLabel = document.createElement('div');
+        narrationLabel.className = 'card-field-label';
+        narrationLabel.textContent = '文字内容';
+        narrationLabel.style.padding = '0 12px';
+        const narrationTA = document.createElement('textarea');
+        narrationTA.className = 'card-narration';
+        narrationTA.value = scene.narration;
+        narrationTA.placeholder = '输入卡片文字内容';
+        narrationTA.style.margin = '4px 12px 8px';
+        narrationTA.addEventListener('input', (e) => {
+          currentScenes[0].narration = e.target.value;
+          saveParams();
+        });
+        content.appendChild(narrationLabel);
+        content.appendChild(narrationTA);
+      }
+
+      // 字体大小（每个文字/字幕元素独立控制）
+      if (el.type === 'text' || el.type === 'caption') {
+        const fsRow = document.createElement('div');
+        fsRow.className = 'param-row';
+        const fsLabel = document.createElement('div');
+        fsLabel.className = 'param-label';
+        fsLabel.textContent = '字体大小';
+        const fsInputContainer = document.createElement('div');
+        fsInputContainer.className = 'param-input';
+        fsInputContainer.style.display = 'flex';
+        fsInputContainer.style.alignItems = 'center';
+        fsInputContainer.style.gap = '4px';
+
+        // 优先级：用户覆盖 > YAML font_size_override > 全局 font_size
+        if (!currentParams.element_font_sizes) currentParams.element_font_sizes = {};
+        const userOverride = currentParams.element_font_sizes[el.id];
+        const yamlOverride = el.font_size_override;
+        const globalFs = currentParams.layout.font_size || 48;
+        const currentFs = userOverride != null ? userOverride : (yamlOverride || globalFs);
+
+        const fsInput = document.createElement('input');
+        fsInput.type = 'number';
+        fsInput.min = '10';
+        fsInput.max = '120';
+        fsInput.step = '1';
+        fsInput.value = String(currentFs);
+        fsInput.style.cssText = 'width:64px;padding:3px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;text-align:center;';
+        fsInput.addEventListener('change', (e) => {
+          let val = parseInt(e.target.value, 10);
+          if (isNaN(val)) val = currentFs;
+          val = Math.max(10, Math.min(120, val));
+          e.target.value = String(val);
+          if (!currentParams.element_font_sizes) currentParams.element_font_sizes = {};
+          currentParams.element_font_sizes[el.id] = val;
+          if (el.type === 'caption') recomputeWrapChars();
+          saveParams();
+        });
+        const fsUnit = document.createElement('span');
+        fsUnit.style.cssText = 'font-size:11px;color:var(--muted);';
+        fsUnit.textContent = 'px';
+        fsInputContainer.appendChild(fsInput);
+        fsInputContainer.appendChild(fsUnit);
+        fsRow.appendChild(fsLabel);
+        fsRow.appendChild(fsInputContainer);
+        content.appendChild(fsRow);
+      }
 
       // 品牌字段（文字输入，支持多行）
       if (mapping.brand_field) {
@@ -1234,7 +1479,7 @@
         content.appendChild(row);
       });
 
-      // 额外字段（如插画大小 slider）
+      // 额外字段（slider / select）
       if (mapping.extra_fields) {
         mapping.extra_fields.forEach(ef => {
           if (ef.type === 'slider') {
@@ -1265,6 +1510,47 @@
             row.appendChild(slider);
             row.appendChild(valueSpan);
             field.appendChild(row);
+            content.appendChild(field);
+          } else if (ef.type === 'select' && Array.isArray(ef.options)) {
+            const field = document.createElement('div');
+            field.className = 'param-row';
+            field.style.padding = '4px 12px';
+            const fieldLabel = document.createElement('div');
+            fieldLabel.className = 'param-label';
+            fieldLabel.textContent = ef.label;
+            const inputContainer = document.createElement('div');
+            inputContainer.className = 'param-input';
+            const select = document.createElement('select');
+            select.style.cssText = 'width:100%;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:12px;';
+            // 初始化 currentParams 中间层
+            const pathKeys = ef.key.split('.');
+            let initObj = currentParams;
+            for (let k = 0; k < pathKeys.length - 1; k++) {
+              if (!initObj[pathKeys[k]] || typeof initObj[pathKeys[k]] !== 'object') {
+                initObj[pathKeys[k]] = {};
+              }
+              initObj = initObj[pathKeys[k]];
+            }
+            const firstOpt = ef.options[0];
+            const firstVal = (typeof firstOpt === 'object' && firstOpt !== null) ? firstOpt.value : firstOpt;
+            const curVal = getValueByPath(ef.key) || el[pathKeys[pathKeys.length - 1]] || firstVal;
+            ef.options.forEach(opt => {
+              const optEl = document.createElement('option');
+              // 支持 {value, label} 对象和纯字符串两种格式
+              const optValue = (typeof opt === 'object' && opt !== null) ? opt.value : opt;
+              const optLabel = (typeof opt === 'object' && opt !== null) ? (opt.label || opt.value) : opt;
+              optEl.value = optValue;
+              optEl.textContent = optLabel;
+              if (optValue === curVal) optEl.selected = true;
+              select.appendChild(optEl);
+            });
+            select.addEventListener('change', (e) => {
+              setValueByPath(ef.key, e.target.value);
+              saveParams();
+            });
+            inputContainer.appendChild(select);
+            field.appendChild(fieldLabel);
+            field.appendChild(inputContainer);
             content.appendChild(field);
           }
         });
@@ -1343,10 +1629,10 @@
         posWrapper.appendChild(posHeader);
 
         posWrapper.appendChild(
-          createPositionAxisSlider('X', el.id, 'x', pos.x, el.min_x, el.max_x, el.step, el)
+          createPositionAxisInput('X', el.id, 'x', pos.x, el.min_x, el.max_x, el.step, el)
         );
         posWrapper.appendChild(
-          createPositionAxisSlider('Y', el.id, 'y', pos.y, el.min_y, el.max_y, el.step, el)
+          createPositionAxisInput('Y', el.id, 'y', pos.y, el.min_y, el.max_y, el.step, el)
         );
         content.appendChild(posWrapper);
       }
@@ -1460,18 +1746,70 @@
       bgColorInput.addEventListener('input', (e) => {
         currentParams.layout.colors.bg = e.target.value;
         bgTextInput.value = e.target.value;
+        // 手动改背景色 → 清除渐变（回退纯色）
+        delete currentParams.layout.background;
         saveParams();
+        renderParamPanel();
       });
-      bgTextInput.addEventListener('input', (e) => {
+      bgTextInput.addEventListener('change', (e) => {
         currentParams.layout.colors.bg = e.target.value;
         bgColorInput.value = e.target.value;
+        delete currentParams.layout.background;
         saveParams();
+        renderParamPanel();
       });
       bgContainer.appendChild(bgColorInput);
       bgContainer.appendChild(bgTextInput);
       bgRow.appendChild(bgLabel);
       bgRow.appendChild(bgContainer);
       content.appendChild(bgRow);
+
+      // ── 渐变背景预览（只读，由配色方案自动控制） ──
+      const curBg = currentParams.layout.background;
+      if (curBg && curBg.type === 'gradient' && curBg.stops && curBg.stops.length) {
+        const gradPreview = document.createElement('div');
+        gradPreview.style.cssText = 'margin:4px 0 8px;';
+        const gradLabel = document.createElement('div');
+        gradLabel.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:4px;';
+        gradLabel.textContent = '当前渐变（由配色方案控制）';
+        const cssStops = curBg.stops.map(s => `${s.color} ${s.position}%`).join(', ');
+        const gradBar = document.createElement('div');
+        gradBar.style.cssText = `height:20px;border-radius:4px;background:linear-gradient(to bottom, ${cssStops});border:1px solid var(--line);`;
+        gradPreview.appendChild(gradLabel);
+        gradPreview.appendChild(gradBar);
+        content.appendChild(gradPreview);
+      }
+
+      // ── 文字颜色 ──
+      const textColorVal = currentParams.layout.colors.text || '#000000';
+      const textColorRow = document.createElement('div');
+      textColorRow.className = 'param-row';
+      const textColorLabel = document.createElement('div');
+      textColorLabel.className = 'param-label';
+      textColorLabel.textContent = '文字颜色';
+      const textColorContainer = document.createElement('div');
+      textColorContainer.className = 'param-input';
+      const textColorInput = document.createElement('input');
+      textColorInput.type = 'color';
+      textColorInput.value = textColorVal;
+      const textColorText = document.createElement('input');
+      textColorText.type = 'text';
+      textColorText.value = textColorVal;
+      textColorInput.addEventListener('input', (e) => {
+        currentParams.layout.colors.text = e.target.value;
+        textColorText.value = e.target.value;
+        saveParams();
+      });
+      textColorText.addEventListener('input', (e) => {
+        currentParams.layout.colors.text = e.target.value;
+        textColorInput.value = e.target.value;
+        saveParams();
+      });
+      textColorContainer.appendChild(textColorInput);
+      textColorContainer.appendChild(textColorText);
+      textColorRow.appendChild(textColorLabel);
+      textColorRow.appendChild(textColorContainer);
+      content.appendChild(textColorRow);
 
       // ── 一键配色 grid（优先模板自带，回退全局）──
       const palettes = currentManifestColorPalettes || COLOR_PALETTES;
@@ -1501,7 +1839,7 @@
 
         item.appendChild(swatches);
         item.appendChild(paletteName);
-        item.addEventListener('click', () => applyPalette(palette.colors));
+        item.addEventListener('click', () => applyPalette(palette.colors, palette.background));
         paletteGrid.appendChild(item);
       });
       content.appendChild(paletteGrid);
@@ -1524,12 +1862,12 @@
       if (!cached || !cached.layout) return;
       const defaultWrapChars = cached.layout.wrap_chars || 9;
       const defaultFontSize = cached.layout.font_size || 44;
-      const currentFontSize = currentParams.layout.font_size || defaultFontSize;
+      // 优先使用字幕元素的独立字号，否则用全局字号
+      const captionFs = currentParams.element_font_sizes && currentParams.element_font_sizes['caption'];
+      const currentFontSize = captionFs || currentParams.layout.font_size || defaultFontSize;
       const autoWrapChars = Math.floor(defaultWrapChars * defaultFontSize / currentFontSize);
       currentParams.layout.wrap_chars = autoWrapChars;
       currentParams.layout.max_chars_per_card = autoWrapChars * 2;
-      const display = document.getElementById('wrap-chars-display');
-      if (display) display.value = String(autoWrapChars);
     }
 
     function renderStyleSection() {
@@ -1549,41 +1887,42 @@
       const content = document.createElement('div');
       content.className = 'section-content';
 
-      // 文字大小滑块
-      const fontSizeField = document.createElement('div');
-      fontSizeField.className = 'slider-field';
-      fontSizeField.style.padding = '8px 12px';
-
-      const fontSizeLabel = document.createElement('div');
-      fontSizeLabel.className = 'card-field-label';
-      fontSizeLabel.textContent = '文字大小';
-      fontSizeField.appendChild(fontSizeLabel);
-
+      // 全局默认字体大小（输入框）
       const fontSizeRow = document.createElement('div');
-      fontSizeRow.className = 'slider-row';
+      fontSizeRow.className = 'param-row';
+      const fontSizeLabel = document.createElement('div');
+      fontSizeLabel.className = 'param-label';
+      fontSizeLabel.textContent = '默认字体大小';
+      const fontSizeInputContainer = document.createElement('div');
+      fontSizeInputContainer.className = 'param-input';
+      fontSizeInputContainer.style.display = 'flex';
+      fontSizeInputContainer.style.alignItems = 'center';
+      fontSizeInputContainer.style.gap = '4px';
 
-      const fontSizeSlider = document.createElement('input');
-      fontSizeSlider.type = 'range';
-      fontSizeSlider.min = '24';
-      fontSizeSlider.max = '72';
-      fontSizeSlider.step = '2';
-      fontSizeSlider.value = String(currentParams.layout.font_size || 48);
-
-      const fontSizeValue = document.createElement('span');
-      fontSizeValue.className = 'slider-value';
-      fontSizeValue.textContent = fontSizeSlider.value;
-
-      fontSizeSlider.addEventListener('input', (e) => {
-        fontSizeValue.textContent = e.target.value;
-        currentParams.layout.font_size = parseInt(e.target.value, 10);
+      const fontSizeInput = document.createElement('input');
+      fontSizeInput.type = 'number';
+      fontSizeInput.min = '16';
+      fontSizeInput.max = '96';
+      fontSizeInput.step = '1';
+      fontSizeInput.value = String(currentParams.layout.font_size || 48);
+      fontSizeInput.style.cssText = 'width:64px;padding:3px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;text-align:center;';
+      fontSizeInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val)) val = 48;
+        val = Math.max(16, Math.min(96, val));
+        e.target.value = String(val);
+        currentParams.layout.font_size = val;
         recomputeWrapChars();
         saveParams();
       });
-
-      fontSizeRow.appendChild(fontSizeSlider);
-      fontSizeRow.appendChild(fontSizeValue);
-      fontSizeField.appendChild(fontSizeRow);
-      content.appendChild(fontSizeField);
+      const fontSizeUnit = document.createElement('span');
+      fontSizeUnit.style.cssText = 'font-size:11px;color:var(--muted);';
+      fontSizeUnit.textContent = 'px';
+      fontSizeInputContainer.appendChild(fontSizeInput);
+      fontSizeInputContainer.appendChild(fontSizeUnit);
+      fontSizeRow.appendChild(fontSizeLabel);
+      fontSizeRow.appendChild(fontSizeInputContainer);
+      content.appendChild(fontSizeRow);
 
       // 文字颜色
       const textColorVal = currentParams.layout.colors.text || '#000000';
@@ -1657,98 +1996,39 @@
       return section;
     }
 
-    // ── 动画效果说明区 ─────────────────────────────────────────────────────────
-
-    function renderAnimationSection() {
-      const section = document.createElement('div');
-      section.className = 'section';
-
-      const header = document.createElement('div');
-      header.className = 'section-header';
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'section-title';
-      titleSpan.textContent = '动画效果';
-      const arrowSpan = document.createElement('span');
-      arrowSpan.textContent = '▼';
-      header.appendChild(titleSpan);
-      header.appendChild(arrowSpan);
-
-      const content = document.createElement('div');
-      content.className = 'section-content';
-
-      const infoBox = document.createElement('div');
-      infoBox.className = 'animation-info';
-
-      const templateAnimationText = {
-        'minimal-insight': [
-          '插画切换：左右滑动（旧图滑出左侧，新图从右侧滑入，0.5秒）',
-          '文字切换：直接替换',
-          '底栏：固定显示'
-        ],
-        'portrait-notebook': [
-          '插画切换：左右滑动（旧图滑出左侧，新图从右侧滑入，0.5秒）',
-          '字幕切换：直接替换',
-          '人像背景：固定显示'
-        ]
-      };
-
-      const lines = templateAnimationText[currentTemplate] || templateAnimationText['minimal-insight'];
-      lines.forEach((line) => {
-        const lineNode = document.createElement('p');
-        lineNode.className = 'animation-line';
-        lineNode.textContent = line;
-        infoBox.appendChild(lineNode);
-      });
-
-      const noteNode = document.createElement('p');
-      noteNode.className = 'animation-note';
-      noteNode.textContent = '动画效果由模板固定，暂不支持自定义';
-      infoBox.appendChild(noteNode);
-
-      content.appendChild(infoBox);
-
-      header.addEventListener('click', () => {
-        content.classList.toggle('collapsed');
-        arrowSpan.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
-      });
-
-      section.appendChild(header);
-      section.appendChild(content);
-      return section;
-    }
+    // ── 动画效果已移入各元素的 extra_fields select 中 ──
 
 
     // ── 位置调整区 ─────────────────────────────────────────────────────────────
 
     // renderPositionSection 和 createPositionElementCard 已移入 renderElementSection()
 
-    function createPositionAxisSlider(axisLabel, elemId, axis, initialValue, min, max, step, el) {
+    function createPositionAxisInput(axisLabel, elemId, axis, initialValue, min, max, step, el) {
       const field = document.createElement('div');
-      field.className = 'position-slider-field';
+      field.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
 
-      const label = document.createElement('div');
-      label.className = 'position-axis-label';
-      label.textContent = `${axisLabel} 轴`;
+      const label = document.createElement('span');
+      label.style.cssText = 'font-size:12px;color:var(--muted);width:24px;flex-shrink:0;';
+      label.textContent = axisLabel;
       field.appendChild(label);
 
-      const row = document.createElement('div');
-      row.className = 'slider-row';
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = String(min);
+      input.max = String(max);
+      input.step = String(step);
+      input.value = String(parseFloat(initialValue).toFixed(1));
+      input.style.cssText = 'width:72px;padding:3px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;text-align:center;';
 
-      const slider = document.createElement('input');
-      slider.type = 'range';
-      slider.min = String(min);
-      slider.max = String(max);
-      slider.step = String(step);
-      slider.value = String(initialValue);
+      const unit = document.createElement('span');
+      unit.style.cssText = 'font-size:11px;color:var(--muted);';
+      unit.textContent = '%';
 
-      const valueDisplay = document.createElement('span');
-      valueDisplay.className = 'slider-value';
-      valueDisplay.textContent = `${initialValue}%`;
-
-      // input 事件：更新参数并调度渲染（实时反馈，last-write-wins 保证不超发）
-      slider.addEventListener('input', (e) => {
-        const numVal = parseFloat(e.target.value);
-        valueDisplay.textContent = `${numVal}%`;
+      input.addEventListener('change', (e) => {
+        let numVal = parseFloat(e.target.value);
+        if (isNaN(numVal)) numVal = initialValue;
+        numVal = Math.max(min, Math.min(max, numVal));
+        e.target.value = numVal.toFixed(1);
 
         if (!currentParams.positions) currentParams.positions = {};
         const prevPos = currentParams.positions[elemId] || { x: el.default_x, y: el.default_y };
@@ -1760,9 +2040,8 @@
         scheduleRender();
       });
 
-      row.appendChild(slider);
-      row.appendChild(valueDisplay);
-      field.appendChild(row);
+      field.appendChild(input);
+      field.appendChild(unit);
       return field;
     }
 
@@ -1947,6 +2226,7 @@
       const keys = path.split('.');
       let value = currentParams;
       for (const key of keys) {
+        if (value == null || typeof value !== 'object') return undefined;
         value = value[key];
       }
       return value;
@@ -1956,17 +2236,32 @@
       const keys = path.split('.');
       let obj = currentParams;
       for (let i = 0; i < keys.length - 1; i++) {
+        if (obj[keys[i]] == null || typeof obj[keys[i]] !== 'object') {
+          obj[keys[i]] = {};
+        }
         obj = obj[keys[i]];
       }
       obj[keys[keys.length - 1]] = value;
     }
 
     // 应用配色方案（只覆盖当前模板已有的颜色 key，保证通用性）
-    function applyPalette(colors) {
+    function applyPalette(colors, background) {
       for (const key of Object.keys(colors)) {
-        if (Object.prototype.hasOwnProperty.call(currentParams.layout.colors, key)) {
-          currentParams.layout.colors[key] = colors[key];
+        currentParams.layout.colors[key] = colors[key];
+      }
+      // 同步渐变背景配置（如果 palette 提供了 background）
+      if (background && background.stops) {
+        currentParams.layout.background = { ...background };
+        // 确保有 type 字段（渲染端依赖）
+        if (!currentParams.layout.background.type) {
+          currentParams.layout.background.type = 'gradient';
         }
+        if (!currentParams.layout.background.direction) {
+          currentParams.layout.background.direction = 'vertical';
+        }
+      } else if (currentParams.layout.background) {
+        // palette 无渐变时，移除渐变配置（回退到纯色背景）
+        delete currentParams.layout.background;
       }
       saveParams();
       renderParamPanel();
@@ -2139,6 +2434,8 @@
         localStorage.removeItem(`template_${currentTemplate}`);
         localStorage.removeItem(`scenes_${currentTemplate}`);
         currentParams.positions = {};
+        currentParams.element_visibility = {};
+        currentParams.element_font_sizes = {};
         await loadTemplate(currentTemplate);
         renderParamPanel();
         scheduleRender();
