@@ -9,6 +9,8 @@ output/
 *.mp4
 *.mp3
 *.png
+# 保留模板需要的素材图片
+!assets/huangfu.png
 _analysis/
 *.wav
 
