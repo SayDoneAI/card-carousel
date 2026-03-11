@@ -15,10 +15,12 @@ class VolcengineTTSEngine(TTSEngine):
         voice_type: str,
         cluster: str = "volcano_tts",
         speed_ratio: float = 1.0,
+        emotion: str = "",
     ):
         self.voice_type = voice_type
         self.cluster = cluster
         self.speed_ratio = speed_ratio
+        self.emotion = emotion
 
     def synthesize(self, text: str, output_path: str) -> TTSResult:
         import requests
@@ -34,6 +36,7 @@ class VolcengineTTSEngine(TTSEngine):
                 "voice_type": self.voice_type,
                 "encoding": "mp3",
                 "speed_ratio": self.speed_ratio,
+                **({"emotion": self.emotion} if self.emotion else {}),
             },
             "request": {
                 "reqid": uuid.uuid4().hex,

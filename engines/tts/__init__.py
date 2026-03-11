@@ -27,6 +27,7 @@ def get_tts_engine(voice_cfg: dict) -> TTSEngine:
             voice_type=voice_cfg.get("voice_type", ""),
             cluster=voice_cfg.get("cluster", "volcano_tts"),
             speed_ratio=voice_cfg.get("speed", 1.0),
+            emotion=voice_cfg.get("emotion", ""),
         )
     else:
         raise ValueError(f"未知 TTS provider: {provider!r}，可用值: volcengine")

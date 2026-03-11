@@ -14,6 +14,7 @@ voice:
   voice_type: zh_male_ruyayichen_uranus_bigtts
   cluster: volcano_tts
   speed: 1.0
+  emotion: narrator
 
 illustrations:
   enabled: true
