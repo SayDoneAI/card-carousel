@@ -17,3 +17,12 @@ from templates.shared import GenericCardScene
 
 class PortraitNotebookScene(GenericCardScene):
     SCENE_NAME = "PortraitNotebookScene"
+
+
+# 动态生成 SceneXX_Cards 类，供 pipeline 按场景名调用
+# Manim 按模块 globals() 查找类名，无需手动枚举
+for _i in range(1, 20):
+    _name = f"Scene{_i:02d}_Cards"
+    globals()[_name] = type(_name, (GenericCardScene,), {"SCENE_NAME": _name})
+
+del _i, _name

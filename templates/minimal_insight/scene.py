@@ -15,5 +15,9 @@ if _DIR not in sys.path:
 from templates.shared import GenericCardScene
 
 
-class Scene01_Cards(GenericCardScene):
-    SCENE_NAME = "Scene01_Cards"
+# 动态生成 SceneXX_Cards 类，供 pipeline 按场景名调用
+for _i in range(1, 20):
+    _name = f"Scene{_i:02d}_Cards"
+    globals()[_name] = type(_name, (GenericCardScene,), {"SCENE_NAME": _name})
+
+del _i, _name

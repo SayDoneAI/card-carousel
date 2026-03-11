@@ -154,6 +154,19 @@ def _find_project_dir(config_path: str) -> str:
     return os.path.dirname(config_path)
 
 
+def _load_brand(project_dir: str) -> dict:
+    """加载项目根目录的 brand.yaml（作者资产层），不存在则返回空 dict"""
+    brand_path = os.path.join(project_dir, "brand.yaml")
+    if not os.path.exists(brand_path):
+        return {}
+    try:
+        with open(brand_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def load_config(path: str) -> dict:
     """加载 YAML 配置，返回 dict 并补全默认值"""
     config_path = os.path.abspath(path)
@@ -168,11 +181,16 @@ def load_config(path: str) -> dict:
     cfg["_project_dir"] = project_dir
     cfg["_config_path"] = config_path
 
+    # 加载 brand.yaml（作者资产层，最低优先级）
+    brand = _load_brand(project_dir)
+    cfg["_brand"] = brand
+
     # ── 模板模式：有 template 字段则加载模板默认值并合并 ──
     if "template" in cfg:
         cfg = _apply_template(cfg, project_dir)
         cfg["_project_dir"] = project_dir
         cfg["_config_path"] = config_path
+        cfg.setdefault("_brand", brand)
 
     # 归一化 layout：确保为 dict（null/缺失都归为 {}）
     if not isinstance(cfg.get("layout"), dict):

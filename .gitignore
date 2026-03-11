@@ -30,3 +30,4 @@ assets/illustrations/
 .benchmarks/
 .pytest_cache/
 .ruff_cache/
+brand.yaml

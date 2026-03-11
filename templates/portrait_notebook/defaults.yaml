@@ -3,6 +3,9 @@ description: "人像卡片 — 真人照片背景 + AI插画 + 字幕"
 
 illustrations:
   remove_bg: false
+  use_character: true
+  use_reference_image: true
+  style_prompt: "手绘笔记风格草图，白色笔记本纸上用马克笔绘制。用图标、箭头、流程图、简笔画等视觉符号表达概念，尽量少写文字，多用图形符号。黑色为主要线条，红色强调重点，可少量绿色黄色装饰。构图清晰有逻辑，填满画布，元素间留足空间。纯白背景高对比度，不使用渐变阴影和3D效果。极简手绘信息图表风格"
 
 canvas:
   pixel_width: 1080

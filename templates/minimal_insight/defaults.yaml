@@ -1,6 +1,11 @@
 name: minimal-insight
 description: "极简洞见 — 竖屏白底大字卡片 + 水墨插画 + 底栏标签"
 
+illustrations:
+  use_character: false
+  use_reference_image: false
+  style_prompt: "Minimalist line drawing illustration, black ink with red accents only, simple clean sketch on pure white background, no background elements, no border, no frame, no text, centered composition, the illustration should seamlessly blend into a white page"
+
 canvas:
   pixel_width: 1080
   pixel_height: 1440

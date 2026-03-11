@@ -192,6 +192,19 @@ def step_illustrations(cfg):
         return
 
     style_prompt = illus_cfg.get("style_prompt", "")
+
+    # 品牌资产层：use_character / use_reference_image
+    brand = cfg.get("_brand", {})
+    brand_author = brand.get("author", {})
+    if illus_cfg.get("use_character") and brand_author.get("character_desc"):
+        style_prompt = f"{brand_author['character_desc']}, {style_prompt}" if style_prompt else brand_author["character_desc"]
+    if illus_cfg.get("use_reference_image") and brand_author.get("reference_image"):
+        # 仅在 content yaml 未显式指定 input_image 时自动补充
+        if not illus_cfg.get("input_image"):
+            illus_cfg = dict(illus_cfg)
+            illus_cfg["input_image"] = brand_author["reference_image"]
+            if "strength" not in illus_cfg and brand_author.get("reference_strength") is not None:
+                illus_cfg["strength"] = brand_author["reference_strength"]
     project_dir = cfg["_project_dir"]
     cache_dir = os.path.join(project_dir, illus_cfg.get("cache_dir", ".cache/illustrations"))
     os.makedirs(cache_dir, exist_ok=True)
@@ -282,7 +295,7 @@ def step_illustrations(cfg):
                 shutil.copy2(cached_path, asset_dest)
             continue
 
-        prompt = f"{style_prompt}, {kw}" if style_prompt else kw
+        prompt = f"{kw}, {style_prompt}" if style_prompt else kw
         print(f"  [{kw}] 生成中...")
 
         out_path = os.path.join(cache_dir, f"{safe_name}.png")
@@ -293,10 +306,9 @@ def step_illustrations(cfg):
         img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image, strength=illus_strength)
 
         if not img_result.success:
-            # 主引擎失败，尝试 fallback（fallback 不传 input_image，因为可能不支持 img2img）
             if fallback_engine:
                 print(f"    主引擎失败 ({img_result.error})，尝试 fallback ({fallback_engine_name})...")
-                fb_result = fallback_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio)
+                fb_result = fallback_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image, strength=illus_strength)
                 if not fb_result.success:
                     print(f"    fallback 生成失败: {fb_result.error}")
                     failed += 1
