@@ -38,8 +38,24 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _load_user_override(template_name: str, project_dir: str) -> dict:
+    """加载用户自定义模板覆盖（.user/templates/<name>.yaml），不存在则返回空 dict"""
+    override_path = os.path.join(project_dir, ".user", "templates", f"{template_name}.yaml")
+    if not os.path.exists(override_path):
+        return {}
+    try:
+        with open(override_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def _apply_template(cfg: dict, project_dir: str) -> dict:
-    """加载模板默认配置并与用户配置合并"""
+    """加载模板默认配置并与用户配置合并
+
+    合并优先级: template.defaults < .user/templates/<name>.yaml < 用户 config
+    """
     import sys
     # 确保项目根目录在 sys.path，使 templates 包可导入
     if project_dir not in sys.path:
@@ -53,8 +69,12 @@ def _apply_template(cfg: dict, project_dir: str) -> dict:
     # brand_defaults → brand（模板默认品牌）
     brand_defaults = defaults.pop("brand_defaults", {})
 
-    # 合并: template defaults < user config
-    merged = _deep_merge(defaults, cfg)
+    # 加载用户自定义覆盖（预览编辑器保存的）
+    user_override = _load_user_override(template_name, project_dir)
+
+    # 合并: template defaults < user override < user config
+    merged = _deep_merge(defaults, user_override)
+    merged = _deep_merge(merged, cfg)
 
     # brand: 用模板 brand_defaults 填充用户未设置的字段
     user_brand = merged.get("brand")
@@ -85,6 +105,29 @@ def _apply_template(cfg: dict, project_dir: str) -> dict:
             if not isinstance(merged.get("layout"), dict):
                 merged["layout"] = {}
             merged["layout"]["pixel_width"] = canvas["pixel_width"]
+
+    # ── 应用 element_visibility / element_font_sizes 到 positionable_elements ──
+    pe_list = merged.get("positionable_elements")
+    if isinstance(pe_list, list) and pe_list:
+        # 深拷贝元素列表，避免修改模板原始对象
+        pe_list = [dict(e) for e in pe_list]
+        merged["positionable_elements"] = pe_list
+
+        # element_visibility 覆盖
+        elem_vis = merged.pop("element_visibility", None)
+        if isinstance(elem_vis, dict) and elem_vis:
+            for elem in pe_list:
+                eid = elem.get("id", "")
+                if eid in elem_vis:
+                    elem["visible"] = elem_vis[eid]
+
+        # element_font_sizes 覆盖
+        elem_fs = merged.pop("element_font_sizes", None)
+        if isinstance(elem_fs, dict) and elem_fs:
+            for elem in pe_list:
+                eid = elem.get("id", "")
+                if eid in elem_fs:
+                    elem["font_size"] = elem_fs[eid]
 
     return merged
 
@@ -140,7 +183,7 @@ def load_config(path: str) -> dict:
     if raw_positions is not None:
         cfg["layout"]["positions"] = sanitize_positions(raw_positions)
 
-    cfg.setdefault("render_quality", "l")
+    cfg.setdefault("render_quality", "h")
     cfg.setdefault("output", {})
     cfg["output"].setdefault("speed", 1.0)
     cfg["output"].setdefault("format", "mp4")
@@ -213,15 +256,15 @@ def load_config(path: str) -> dict:
     cfg["_audio_dir"] = os.path.join(media_base, "audio")
     cfg["_timing_file"] = os.path.join(media_base, "_timing.json")
 
-    # Manim 按 {像素高度}p{fps} 命名渲染目录（如 1440p15、1920p15）
-    # 不同模板分辨率不同，自动检测实际目录而非硬编码
-    layout_val = cfg.get("layout")
-    if not isinstance(layout_val, dict):
-        layout_val = {}
-    pixel_height = layout_val.get("pixel_height", 1440)
+    # Manim 按 quality preset 的 pixel_height 命名渲染目录
+    # 注意：shared.py 的 construct() 会在运行时覆盖 config.pixel_height，
+    # 但 Manim 的输出目录在此之前就已根据 -ql/-qm/-qh 的 preset 值确定。
+    # 因此这里必须用 Manim quality preset 的高度，不是模板的 pixel_height。
+    manim_quality_heights = {"l": 480, "m": 720, "h": 1080}
     fps_map = {"l": 15, "m": 30, "h": 60}
+    manim_ph = manim_quality_heights.get(cfg["render_quality"], 480)
     fps = fps_map.get(cfg["render_quality"], 15)
-    quality_dir = f"{pixel_height}p{fps}"
+    quality_dir = f"{manim_ph}p{fps}"
     cfg["_render_dir"] = os.path.join(media_base, quality_dir)
     cfg["_voiced_dir"] = os.path.join(media_base, "voiced")
 

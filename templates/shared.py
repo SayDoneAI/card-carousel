@@ -227,12 +227,12 @@ def _remove_bg(path, threshold=220):
     return out_path
 
 
-def _load_illustration(keyword):
+def _load_illustration(keyword, remove_bg=True):
     safe_name = sanitize_filename(keyword)
     for ext in (".png", ".jpg", ".jpeg"):
         path = os.path.join(ASSETS_DIR, f"{safe_name}{ext}")
         if os.path.exists(path):
-            return _remove_bg(path)
+            return _remove_bg(path) if remove_bg else path
     return None
 
 
@@ -311,7 +311,9 @@ def _build_illustration(keyword, cfg, colors, font, illus_size, max_height=None,
         target_h = max_height or illus_size
 
     use_placeholder_only = _should_use_placeholder_mode(cfg)
-    img_path = None if use_placeholder_only else _load_illustration(keyword)
+    illus_cfg = cfg.get("illustrations", {})
+    do_remove_bg = illus_cfg.get("remove_bg", True) if isinstance(illus_cfg, dict) else True
+    img_path = None if use_placeholder_only else _load_illustration(keyword, remove_bg=do_remove_bg)
 
     if not img_path:
         if not use_placeholder_only:
@@ -1077,7 +1079,8 @@ class GenericCardScene(Scene):
             illus = None
             if need_new_illus and illus_elem is not None:
                 wp = illus_elem.get("width_percent")
-                ar = illus_elem.get("aspect_ratio")
+                # 优先使用 illustration.aspect_ratio（预览编辑器覆盖）
+                ar = cfg.get("illustration", {}).get("aspect_ratio") or illus_elem.get("aspect_ratio")
                 illus = _build_illustration(
                     kw, cfg, colors, font, illus_size,
                     width_percent=wp, aspect_ratio=ar,

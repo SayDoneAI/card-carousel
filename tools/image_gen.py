@@ -135,11 +135,54 @@ def _is_rate_limit_error(e: Exception) -> bool:
     return "429" in err_str or "rate" in err_str or "quota" in err_str or "resource_exhausted" in err_str
 
 
-def _load_reference_image(input_path: str) -> str:
-    """加载参考图片，返回 data URL (base64)"""
+def _load_reference_image(input_path: str, target_aspect_ratio: str = None) -> str:
+    """加载参考图片，按目标比例居中裁剪后返回 data URL (base64)。
+
+    doubao img2img 模式会忽略 size 参数，输出跟着参考图比例走，
+    所以必须在上传前把参考图裁成目标比例。
+    """
     p = Path(input_path)
     if not p.exists():
         raise FileNotFoundError(f"Reference image not found: {input_path}")
+
+    if target_aspect_ratio and HAS_PIL:
+        # 解析目标比例
+        parts = target_aspect_ratio.split(":")
+        if len(parts) == 2:
+            try:
+                tw, th = float(parts[0]), float(parts[1])
+                target_ratio = tw / th
+
+                img = PILImage.open(p).convert("RGBA")
+                src_w, src_h = img.size
+                src_ratio = src_w / src_h
+
+                # 只在比例差异 > 5% 时适配
+                if abs(src_ratio - target_ratio) / target_ratio > 0.05:
+                    # contain 模式：缩放适配 + 白色填充，保留完整图片内容
+                    # （裁剪会丢失人像等关键内容）
+                    target_size = ASPECT_RATIO_TO_SIZE.get(target_aspect_ratio, "1024x1024")
+                    tw_px, th_px = [int(x) for x in target_size.split("x")]
+                    # 计算缩放比例（contain：取小的一边）
+                    scale = min(tw_px / src_w, th_px / src_h)
+                    new_w = int(src_w * scale)
+                    new_h = int(src_h * scale)
+                    resized = img.resize((new_w, new_h), PILImage.LANCZOS)
+                    # 创建白色画布，居中放置
+                    canvas = PILImage.new("RGB", (tw_px, th_px), (255, 255, 255))
+                    paste_x = (tw_px - new_w) // 2
+                    paste_y = (th_px - new_h) // 2
+                    canvas.paste(resized, (paste_x, paste_y), resized if resized.mode == "RGBA" else None)
+                    img = canvas
+                    print(f"  Reference image fitted: {src_w}x{src_h} → {tw_px}x{th_px} ({target_aspect_ratio}, contain)")
+
+                import io
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                b64 = base64.b64encode(buf.getvalue()).decode()
+                return f"data:image/png;base64,{b64}"
+            except (ValueError, ZeroDivisionError):
+                pass  # 解析失败，回退到原图
 
     mime, _ = mimetypes.guess_type(str(p))
     if not mime:
@@ -322,7 +365,8 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
                      aspect_ratio: str = "1:1",
                      output_dir: str = None, filename: str = None,
                      model: str = "doubao-seedream-5-0-260128",
-                     input_image: str = None) -> str:
+                     input_image: str = None,
+                     strength: float = None) -> str:
     """
     通过 OpenAI 兼容接口 (/v1/images/generations) 生成图片。
     支持文生图和图生图（传入 input_image）。
@@ -352,6 +396,8 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
     mode_label = "图生图" if input_image else "文生图"
     if input_image:
         body["image"] = input_image
+        if strength is not None:
+            body["strength"] = strength
 
     print(f"[Doubao Mode — {mode_label}]")
     print(f"  Base URL:     {base_url}")
@@ -417,6 +463,7 @@ def generate(prompt: str, negative_prompt: str = None,
              output_dir: str = None, filename: str = None,
              model: str = None, engine: str = "gemini",
              input_image: str = None,
+             strength: float = None,
              max_retries: int = MAX_RETRIES) -> str:
     """
     图像生成统一入口（带自动重试）。
@@ -453,7 +500,7 @@ def generate(prompt: str, negative_prompt: str = None,
     if input_image:
         if engine != "doubao":
             raise ValueError("--input (图生图) only supported with --engine doubao")
-        ref_data = _load_reference_image(input_image)
+        ref_data = _load_reference_image(input_image, target_aspect_ratio=aspect_ratio)
         print(f"  Loaded reference image: {input_image}")
 
     # Gemini 引擎校验
@@ -474,6 +521,7 @@ def generate(prompt: str, negative_prompt: str = None,
                 return _generate_doubao(
                     api_key, base_url, prompt, negative_prompt,
                     aspect_ratio, output_dir, filename, model, ref_data,
+                    strength,
                 )
             else:  # gemini
                 if base_url:
@@ -544,6 +592,10 @@ if __name__ == "__main__":
         "--model", "-m", default=None,
         help=f"Model name. Defaults: gemini={ENGINE_DEFAULTS['gemini']}, doubao={ENGINE_DEFAULTS['doubao']}."
     )
+    parser.add_argument(
+        "--strength", "-s", type=float, default=None,
+        help="Reference image strength for img2img (doubao only). 0.0=keep original, 1.0=ignore. Default: 0.5."
+    )
 
     args = parser.parse_args()
 
@@ -551,7 +603,7 @@ if __name__ == "__main__":
         generate(
             args.prompt, args.negative_prompt, args.aspect_ratio,
             args.image_size, args.output, args.filename, args.model,
-            args.engine, args.input_image,
+            args.engine, args.input_image, args.strength,
         )
     except (ValueError, FileNotFoundError) as e:
         print(f"Error: {e}")

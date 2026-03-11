@@ -688,6 +688,7 @@
 
         <div class="button-row">
           <button id="render-btn" class="primary">🎬 渲染预览</button>
+          <button id="save-template-btn">💾 保存模板</button>
           <button id="reset-btn">🔄 重置为默认</button>
         </div>
       </div>
@@ -821,6 +822,7 @@
     const ui = {
       templateSelect: document.getElementById('template-select'),
       renderBtn: document.getElementById('render-btn'),
+      saveTemplateBtn: document.getElementById('save-template-btn'),
       resetBtn: document.getElementById('reset-btn'),
       placeholder: document.getElementById('placeholder'),
       spinner: document.getElementById('spinner'),
@@ -849,6 +851,7 @@
       });
 
       ui.renderBtn.addEventListener('click', scheduleRender);
+      ui.saveTemplateBtn.addEventListener('click', saveTemplateToFile);
       ui.resetBtn.addEventListener('click', resetToDefaults);
 
       // 尝试加载已有视频帧（即使加载成功，也在首次打开时触发一次渲染）
@@ -1066,6 +1069,14 @@
 
       const normalizedDefaults = normalizeTemplateParams(deepClone(defaults));
       templateDefaultsCache[template] = deepClone(normalizedDefaults);
+      // 更新保存按钮提示
+      if (payload.has_user_override) {
+        ui.saveTemplateBtn.textContent = '💾 更新模板';
+        ui.saveTemplateBtn.title = '已有用户自定义模板，点击更新';
+      } else {
+        ui.saveTemplateBtn.textContent = '💾 保存模板';
+        ui.saveTemplateBtn.title = '保存当前配置，视频生成时会使用';
+      }
       return deepClone(normalizedDefaults);
     }
 
@@ -1595,6 +1606,27 @@
               saveParams();
             });
             inputContainer.appendChild(select);
+            field.appendChild(fieldLabel);
+            field.appendChild(inputContainer);
+            content.appendChild(field);
+          } else if (ef.type === 'toggle') {
+            const field = document.createElement('div');
+            field.className = 'param-row';
+            field.style.padding = '4px 12px';
+            const fieldLabel = document.createElement('div');
+            fieldLabel.className = 'param-label';
+            fieldLabel.textContent = ef.label;
+            const inputContainer = document.createElement('div');
+            inputContainer.className = 'param-input';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = !!getValueByPath(ef.key);
+            checkbox.style.cssText = 'width:16px;height:16px;cursor:pointer;';
+            checkbox.addEventListener('change', (e) => {
+              setValueByPath(ef.key, e.target.checked);
+              saveParams();
+            });
+            inputContainer.appendChild(checkbox);
             field.appendChild(fieldLabel);
             field.appendChild(inputContainer);
             content.appendChild(field);
@@ -2611,6 +2643,33 @@
         await loadTemplate(currentTemplate);
         renderParamPanel();
         scheduleRender();
+      }
+    }
+
+    // 保存当前参数为用户自定义模板覆盖（写入磁盘，pipeline 运行时会使用）
+    async function saveTemplateToFile() {
+      if (!previewServerAvailable) {
+        updateStatus('error', PREVIEW_SERVER_OFFLINE_MESSAGE);
+        return;
+      }
+      if (!confirm(`将当前配置保存为「${currentTemplate}」的用户模板？\n\n保存后，视频生成管线会自动使用这份配置。`)) {
+        return;
+      }
+      try {
+        updateStatus('loading', '保存模板中...');
+        const resp = await fetch(`${API_BASE}/api/save_template`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template: currentTemplate, params: currentParams }),
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          updateStatus('ready', `模板已保存到 ${data.saved}`);
+        } else {
+          updateStatus('error', data.error || '保存失败');
+        }
+      } catch (e) {
+        updateStatus('error', `保存失败: ${e.message}`);
       }
     }
 

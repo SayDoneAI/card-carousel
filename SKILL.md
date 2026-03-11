@@ -210,8 +210,24 @@ open tools/template_preview.html  # 打开编辑器
 - **插画设置** — 大小、比例、切换动画
 - **品牌定制** — Logo 文字、作者名、拼音、免责声明、底栏标签
 - **参数持久化** — 修改自动保存到 localStorage，重载时恢复
+- **保存模板** — 点击「💾 保存模板」将当前配置写入 `.user/templates/<name>.yaml`，管线运行时自动使用
 
 渲染机制：点击"渲染预览"按钮 → 调用 preview_server 的 Manim 单帧渲染 → 返回 PNG 预览图。
+
+## User Template Overrides
+
+编辑器中的配置默认只存在浏览器 localStorage 中，不影响视频生成管线。点击「💾 保存模板」后，配置会写入磁盘，管线自动使用。
+
+**三层合并优先级**：
+```
+templates/<name>/defaults.yaml   ← Git 开发者默认值（只读）
+.user/templates/<name>.yaml      ← 用户自定义覆盖（编辑器保存，gitignored）
+content/<config>.yaml            ← 内容配置（每次生成视频的具体参数）
+```
+
+- `.user/templates/` 目录已加入 `.gitignore`，不会提交到 git
+- 用户不保存模板时，管线行为与之前完全一致（git defaults + content config）
+- 保存后管线自动读取，无需额外配置
 
 ## Template Defaults
 
@@ -304,7 +320,7 @@ open tools/template_preview.html  # 打开编辑器
 
 ```
 pipeline.py (CLI entry)
-  → core/config.py (load YAML + .env + template merge + path derivation)
+  → core/config.py (load YAML + .env + template merge + user override + path derivation)
   → core/orchestrator.py (5-step pipeline)
       → engines/tts/ (ABC + factory: volcengine)
       → engines/image/ (ABC + factory: gemini | doubao)
@@ -313,8 +329,11 @@ pipeline.py (CLI entry)
           → minimal_insight/defaults.yaml
           → portrait_notebook/defaults.yaml
 
+.user/templates/              (user overrides, gitignored)
+  → <template-name>.yaml      (saved from preview editor)
+
 tools/
-  → preview_server.py (Flask API: single-frame Manim rendering, port 8766)
+  → preview_server.py (HTTP API: render, save template, upload image, port 8766)
   → template_preview.html (browser-based visual editor)
   → image_gen.py (AI image generation tool)
 ```

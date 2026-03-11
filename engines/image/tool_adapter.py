@@ -17,7 +17,8 @@ class ToolAdapterEngine(ImageEngine):
 
     def generate(self, prompt: str, output_path: str,
                  aspect_ratio: str = "1:1",
-                 input_image: str = "") -> ImageResult:
+                 input_image: str = "",
+                 strength: float = None) -> ImageResult:
         # output_path 在此引擎里不直接使用（工具自行决定文件名）
         # 调用约定与原 _generate_with_tool 完全一致
         import os
@@ -36,6 +37,8 @@ class ToolAdapterEngine(ImageEngine):
             cmd.extend(["--model", self.model])
         if input_image and os.path.exists(input_image):
             cmd.extend(["--input", input_image])
+        if strength is not None:
+            cmd.extend(["--strength", str(strength)])
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode == 0:

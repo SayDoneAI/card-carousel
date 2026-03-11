@@ -227,11 +227,14 @@ def step_illustrations(cfg):
     print("=" * 50)
 
     # 从模板 positionable_elements 获取插画宽高比
-    illus_aspect_ratio = "1:1"
-    for pe in cfg.get("positionable_elements", []):
-        if pe.get("type") == "illustration":
-            illus_aspect_ratio = pe.get("aspect_ratio", "1:1")
-            break
+    # 优先使用 illustration.aspect_ratio（预览编辑器覆盖），回退到元素默认值
+    illus_aspect_ratio = cfg.get("illustration", {}).get("aspect_ratio")
+    if not illus_aspect_ratio:
+        illus_aspect_ratio = "1:1"
+        for pe in cfg.get("positionable_elements", []):
+            if pe.get("type") == "illustration":
+                illus_aspect_ratio = pe.get("aspect_ratio", "1:1")
+                break
 
     # 收集所有唯一关键词
     all_keywords = set()
@@ -286,7 +289,8 @@ def step_illustrations(cfg):
         print(f"    引擎: {engine_name}" + (f" ({model})" if model else ""))
         if input_image:
             print(f"    参考图: {os.path.basename(input_image)}")
-        img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image)
+        illus_strength = illus_cfg.get("strength")
+        img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image, strength=illus_strength)
 
         if not img_result.success:
             # 主引擎失败，尝试 fallback（fallback 不传 input_image，因为可能不支持 img2img）

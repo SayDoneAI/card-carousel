@@ -20,7 +20,8 @@ illustrations:
   engine: doubao
   model: doubao-seedream-5-0-260128
   input_image: "assets/huangfu.png"
-  style_prompt: "Bold black marker sketch on white notebook page with spiral binding on left side, rough hand-drawn infographic style, black ink lines with red accent marks, diagram and chibi cartoon character illustration, white paper background, no color fill"
+  strength: 0.3
+  style_prompt: "将参考图中的光头男性人物绘制为Q版卡通小人，保持光头特征，放在画面一角做讲解动作。手绘笔记风格草图，白色笔记本纸上用马克笔绘制。用图标、箭头、流程图、简笔画等视觉符号表达概念，尽量少写文字，多用图形符号。黑色为主要线条，红色强调重点，可少量绿色黄色装饰。构图清晰有逻辑，填满画布，元素间留足空间。纯白背景高对比度，不使用渐变阴影和3D效果。极简手绘信息图表风格"
   cache_dir: ".cache/illustrations"
   gen_tool: "tools/image_gen.py"
 

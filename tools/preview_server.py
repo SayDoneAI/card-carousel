@@ -60,6 +60,7 @@ _CACHE_ILLUSTRATIONS_DIR = _CACHE_DIR / "illustrations"
 _PREVIEW_ASSETS_DIR = _CACHE_DIR / "preview_assets"
 _ASSETS_ILLUSTRATIONS_DIR = PROJECT_DIR / "assets" / "illustrations"
 _UPLOADS_DIR = PROJECT_DIR / "assets" / "uploads"
+_USER_TEMPLATES_DIR = PROJECT_DIR / ".user" / "templates"
 
 
 def _client_error_message(default_msg: str, exc: Exception | None = None) -> str:
@@ -955,6 +956,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "ok", "port": PORT})
         elif path == "/api/list-images":
             self._handle_list_images()
+        elif path == "/api/user_template":
+            self._handle_get_user_template(parsed.query)
         else:
             self._serve_static(path)
 
@@ -985,9 +988,22 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         template = qs.get("template", ["minimal-insight"])[0]
         try:
             defaults = _get_template_defaults(template)
+            # 合并用户自定义覆盖（如果存在）
+            override_path = _USER_TEMPLATES_DIR / f"{template}.yaml"
+            has_user_override = override_path.exists()
+            if has_user_override:
+                import yaml as _yaml
+                with open(override_path, encoding="utf-8") as f:
+                    user_data = _yaml.safe_load(f)
+                if isinstance(user_data, dict):
+                    defaults = _deep_merge(defaults, user_data)
             # positionable_elements 只通过 /api/template_manifest 暴露
             defaults_response = {k: v for k, v in defaults.items() if k != "positionable_elements"}
-            self._send_json(200, {"template": template, "defaults": defaults_response})
+            self._send_json(200, {
+                "template": template,
+                "defaults": defaults_response,
+                "has_user_override": has_user_override,
+            })
         except ValueError as exc:
             log.warning("template_defaults 参数错误: %s", exc)
             self._send_error_json(400, _client_error_message("参数错误", exc))
@@ -1097,6 +1113,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._handle_render_frame()
         elif path == "/api/upload-image":
             self._handle_upload_image()
+        elif path == "/api/save_template":
+            self._handle_save_template()
         else:
             self._send_error_json(404, f"未知 API: {path}")
 
@@ -1215,6 +1233,102 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             log.exception("upload-image 失败")
             self._send_error_json(500, _client_error_message("上传失败"))
+
+    def _handle_save_template(self):
+        """POST /api/save_template — 将编辑器参数保存为用户自定义模板覆盖
+
+        保存到 .user/templates/<template>.yaml，pipeline 运行时会读取并合并。
+        合并优先级：git defaults < .user/templates/<name>.yaml < content config
+        """
+        import yaml as _yaml
+
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            self._send_error_json(400, "Content-Length 必须是整数")
+            return
+
+        if length == 0:
+            self._send_error_json(400, "缺少请求体")
+            return
+
+        try:
+            body = self.rfile.read(length)
+            payload = json.loads(body)
+        except Exception as exc:
+            self._send_error_json(400, _client_error_message("参数错误", exc))
+            return
+
+        template = payload.get("template", "").strip()
+        params = payload.get("params")
+        if not template or not isinstance(params, dict):
+            self._send_error_json(400, "需要 template (字符串) 和 params (对象)")
+            return
+
+        # 安全校验：模板名只允许字母数字和连字符
+        if not re.match(r"^[a-zA-Z0-9_-]+$", template):
+            self._send_error_json(400, f"模板名不合法: {template!r}")
+            return
+
+        # 构建要保存的覆盖配置
+        override = {}
+        if "layout" in params and isinstance(params["layout"], dict):
+            override["layout"] = params["layout"]
+        if "brand" in params and isinstance(params["brand"], dict):
+            override["brand"] = params["brand"]
+        if "footer_tags" in params:
+            override.setdefault("brand", {})["footer_tags"] = params["footer_tags"]
+        # 元素可见性、字号、位置覆盖
+        if "element_visibility" in params and isinstance(params["element_visibility"], dict):
+            override["element_visibility"] = params["element_visibility"]
+        if "element_font_sizes" in params and isinstance(params["element_font_sizes"], dict):
+            override["element_font_sizes"] = params["element_font_sizes"]
+        if "positions" in params and isinstance(params["positions"], dict):
+            override["positions"] = params["positions"]
+        # 动画、图片、插画参数
+        if "animation" in params and isinstance(params["animation"], dict):
+            override["animation"] = params["animation"]
+        if "image" in params and isinstance(params["image"], dict):
+            override["image"] = params["image"]
+        if "illustration" in params and isinstance(params["illustration"], dict):
+            override["illustration_display"] = params["illustration"]
+
+        if not override:
+            self._send_error_json(400, "没有可保存的参数")
+            return
+
+        try:
+            _USER_TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+            dest = _USER_TEMPLATES_DIR / f"{template}.yaml"
+            with open(dest, "w", encoding="utf-8") as f:
+                _yaml.dump(override, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+            log.info("用户模板覆盖已保存: %s", dest)
+            self._send_json(200, {"saved": str(dest.relative_to(PROJECT_DIR))})
+        except Exception:
+            log.exception("save_template 失败")
+            self._send_error_json(500, _client_error_message("保存模板失败"))
+
+    def _handle_get_user_template(self, query_string: str):
+        """GET /api/user_template?template=xxx — 返回用户自定义模板覆盖（如有）"""
+        qs = urllib.parse.parse_qs(query_string)
+        template = qs.get("template", [""])[0].strip()
+        if not template:
+            self._send_error_json(400, "缺少 template 参数")
+            return
+
+        override_path = _USER_TEMPLATES_DIR / f"{template}.yaml"
+        if not override_path.exists():
+            self._send_json(200, {"template": template, "override": None})
+            return
+
+        try:
+            import yaml as _yaml
+            with open(override_path, encoding="utf-8") as f:
+                data = _yaml.safe_load(f)
+            self._send_json(200, {"template": template, "override": data or {}})
+        except Exception:
+            log.exception("读取用户模板失败")
+            self._send_error_json(500, _client_error_message("读取用户模板失败"))
 
 
 # ── 入口 ──────────────────────────────────────────────────────────────────────
