@@ -36,7 +36,6 @@ PROJECT=~/Documents/RedCode/card-carousel
 ```
 
 用户也可以选择性提供：
-- **模板选择** — `minimal-insight`（1080x1440）或 `portrait-notebook`（1080x1920）
 - **主题句**（topic）— 强调色居中显示的金句，不提供则留空
 - **播放倍速** — 默认 1.0x
 - **配色方案** — 17 款可选（见下方配色方案章节）
@@ -45,6 +44,32 @@ PROJECT=~/Documents/RedCode/card-carousel
 ## Execution Workflow
 
 **CRITICAL: Follow every step in order. Do NOT skip any step.**
+
+### Step 0: 发现可用模板并询问用户（必须）
+
+收到用户文案后，**必须先发现模板、询问选择**，再进行任何后续步骤。
+
+**1. 动态发现模板**（不要依赖 SKILL.md 中的硬编码列表）：
+
+```bash
+ls $PROJECT/templates/
+```
+
+对每个子目录（排除 `__pycache__`、`base.py`、`shared.py` 等非模板文件），读取：
+- `templates/<name>/defaults.yaml` — 取 `name`、`description`、`canvas.pixel_width`、`canvas.pixel_height`、`illustrations` 字段
+- `templates/<name>/scene.py` — 取 `SCENE_NAME` 常量值
+
+**2. 向用户展示选项并询问**，格式示例：
+
+> 请问你想用哪个模板生成视频？
+>
+> **模板1 — minimal-insight**（1080×1440）
+> 极简洞见 — 白底大字卡片 + 水墨插画 + 底栏标签
+>
+> **模板2 — portrait-notebook**（1080×1920）
+> 人像卡片 — 真人照片背景 + AI插画 + 字幕
+
+若用户已在文案或指令中明确指定模板，则跳过此步骤。
 
 ### Step 1: 解析用户文案 → 生成 config.yaml
 
@@ -59,14 +84,22 @@ PROJECT=~/Documents/RedCode/card-carousel
    - 内容转折或场景变化时用新关键词（触发滑动动画）
    - 建议每 2-3 句换一张图，节奏感更好
 
-生成的 config.yaml 放在 `$PROJECT/content/` 目录：
+生成的 config.yaml 放在 `$PROJECT/content/` 目录。**config 中的关键字段必须从模板文件中动态读取，不能硬编码**：
+
+| config 字段 | 来源 |
+|------------|------|
+| `template` | 用户选择的模板目录名 |
+| `scenes[].name` | 从 `templates/<name>/scene.py` 读取的 `SCENE_NAME` |
+| `illustrations.*` | 从 `templates/<name>/defaults.yaml` 读取的 `illustrations` 字段 |
+
+config.yaml 结构模板：
 
 ```yaml
-template: minimal-insight
-title: "认知升级"
+template: <模板名>
+title: "<标题>"
 
 brand:
-  topic: "从文案中提炼的主题句"
+  topic: "<从文案中提炼的主题句>"
 
 voice:
   provider: volcengine
@@ -76,11 +109,7 @@ voice:
 
 illustrations:
   enabled: true
-  engine: gemini
-  model: gemini-3.1-flash-image-preview
-  fallback_engine: doubao
-  fallback_model: doubao-seedream-5-0-260128
-  style_prompt: "Minimalist line drawing illustration, black ink with red accents only, simple clean sketch on pure white background, no background elements, no border, no frame, no text, centered composition, the illustration should seamlessly blend into a white page"
+  # 其余字段从 templates/<name>/defaults.yaml 的 illustrations 节读取后填入
   cache_dir: ".cache/illustrations"
   gen_tool: "tools/image_gen.py"
 
@@ -88,26 +117,17 @@ output:
   speed: 1.0
 
 scenes:
-  - name: Scene01_Cards
+  - name: <SCENE_NAME>   # 从 scene.py 读取，不同模板不同
     narration: |
-      真正阻碍一个人成长的从来不是能力不足
-      而是认知顺序的严重错位
-      他们把该敬畏的东西当成了敌人
-      面对专业他们毫无敬畏总觉得差不多就行了
+      <旁白文案>
     illustration_keywords:
-      - growth obstacle
-      - null
-      - shield and sword
-      - null
+      - <关键词或 null>
 ```
 
 **注意**：
-- `brand` 中只需要写 `topic`，其余字段（logo_char/author/pinyin 等）全部走模板默认值（黄赋）
-- `voice` 和 `illustrations` 固定使用上述配置，不需要用户指定
-- 如果文案很长（超过 15 句），拆成多个 Scene（Scene01_Cards, Scene02_Cards...）
-- **模板选择决定插画配置**：
-  - `minimal-insight` → Gemini 文生图，极简线描黑白+红色点缀
-  - `portrait-notebook` → Doubao 图生图（img2img），以作者照片为参考，黑色马克笔笔记本速写风格
+- `scenes[].name` 必须与模板 `scene.py` 中的 `SCENE_NAME` 完全一致，否则 Manim 找不到场景类会报错
+- `brand` 中只需写 `topic`，其余字段走模板默认值
+- 如果文案很长（超过 15 句），拆成多个 Scene，命名规则参考模板的 `SCENE_NAME`（如 `Scene01_Cards`、`Scene02_Cards`）
 
 ### Step 2: Run Pipeline
 
