@@ -295,7 +295,10 @@ def step_illustrations(cfg):
                 shutil.copy2(cached_path, asset_dest)
             continue
 
-        prompt = f"{kw}, {style_prompt}" if style_prompt else kw
+        if style_prompt:
+            prompt = style_prompt.replace("表达概念", f"表达「{kw}」的概念") if "表达概念" in style_prompt else f"{style_prompt}，主题内容：{kw}"
+        else:
+            prompt = kw
         print(f"  [{kw}] 生成中...")
 
         out_path = os.path.join(cache_dir, f"{safe_name}.png")
