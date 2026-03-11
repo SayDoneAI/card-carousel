@@ -1,0 +1,8 @@
+# 作者品牌资产 — 跨模板复用
+# 复制此文件为 brand.yaml 并填入自己的信息
+# brand.yaml 已加入 .gitignore，不会提交到 git
+
+author:
+  character_desc: "光头男性人物绘制为Q版卡通小人，保持光头特征，放在画面一角做讲解动作"
+  reference_image: "assets/huangfu.png"   # 参考图路径（相对于项目根目录）
+  reference_strength: 0.3                 # img2img 参考强度，0.0=完全保留原图，1.0=完全忽略
