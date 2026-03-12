@@ -203,6 +203,9 @@ def step_illustrations(cfg):
             style_prompt = style_prompt.replace("{character}", character_desc)
         else:
             style_prompt = f"{character_desc}, {style_prompt}" if style_prompt else character_desc
+    else:
+        # 无人物描述时清理残留的 {character} 占位符，避免脏 prompt
+        style_prompt = style_prompt.replace("{character}", "").strip().rstrip(",.，。")
     # 参考图控制：仅 use_reference_image=true 时允许 input_image
     use_ref = illus_cfg.get("use_reference_image")
     if use_ref is True:

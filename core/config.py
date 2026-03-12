@@ -210,8 +210,12 @@ def load_config(path: str) -> dict:
     cfg["output"].setdefault("dir", os.getcwd())
 
     # voice 合并优先级: content yaml > brand.yaml > 硬编码默认值
-    cfg.setdefault("voice", {})
+    # 归一化：None / 非 dict 回退为 {}，避免 setdefault/items 崩溃
+    if not isinstance(cfg.get("voice"), dict):
+        cfg["voice"] = {}
     brand_voice = brand.get("voice", {})
+    if not isinstance(brand_voice, dict):
+        brand_voice = {}
     for k, v in brand_voice.items():
         cfg["voice"].setdefault(k, v)
     cfg["voice"].setdefault("provider", "volcengine")

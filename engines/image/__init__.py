@@ -26,16 +26,11 @@ def get_image_engine(illus_cfg: dict, gen_tool: str = "") -> ImageEngine:
     engine = illus_cfg.get("engine", "gemini")
     model = illus_cfg.get("model", None)
 
-    if engine == "svg_compose":
-        from .svg_compose import SvgComposeEngine
-        icons_dir = illus_cfg.get("icons_dir", "")
-        style = illus_cfg.get("style", "")
-        return SvgComposeEngine(icons_dir=icons_dir, model=model or "", style=style)
-    elif engine in ("gemini", "doubao"):
+    if engine in ("gemini", "doubao"):
         from .tool_adapter import ToolAdapterEngine
         return ToolAdapterEngine(engine=engine, model=model, gen_tool=gen_tool)
     elif gen_tool:
         from .tool_adapter import ToolAdapterEngine
         return ToolAdapterEngine(engine=engine, model=model, gen_tool=gen_tool)
     else:
-        raise ValueError(f"未知图片引擎: {engine!r}，可用值: gemini, doubao, svg_compose")
+        raise ValueError(f"未知图片引擎: {engine!r}，可用值: gemini, doubao")
