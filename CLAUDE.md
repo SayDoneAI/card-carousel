@@ -6,9 +6,14 @@
 ## 技术栈
 - **渲染引擎**: Manim Community v0.20+ (竖屏 1080x1440, 3:4)
 - **TTS**: 火山引擎 TTS
-- **AI 生图**: Gemini (主) / Doubao (备) — 通过 tools/image_gen.py
+- **AI 生图**: Gemini (主) / Kling (备) / Doubao (备) — 通过 tools/image_gen.py
 - **视频处理**: FFmpeg
 - **配置格式**: YAML
+
+## 引擎价格
+- gemini-3.1-flash-image-preview: ¥0.099/张
+- kling-v3: ¥0.168/张
+- doubao-seedream-5.0: ¥0.220/张
 
 ## 项目结构
 ```
@@ -85,8 +90,8 @@ python pipeline.py config.yaml --speed 1.5  # 1.5 倍速
 
 ## 环境变量 (.env)
 - `VOLC_API_KEY` — 火山引擎 TTS API Key
-- `GEMINI_API_KEY` — sucloud 中转 API Key（插画生成）
-- `GEMINI_BASE_URL` — sucloud 基础 URL
+- `GEMINI_API_KEY` — sucloud 中转 API Key（插画生成，Gemini / Kling / Doubao 共用）
+- `GEMINI_BASE_URL` — sucloud 基础 URL（Gemini / Kling / Doubao 共用）
 
 ## 环境变量（运行时注入，由 orchestrator 设置）
 - `CARD_CAROUSEL_PROJECT_DIR` — 项目根目录
@@ -103,7 +108,7 @@ python pipeline.py config.yaml --speed 1.5  # 1.5 倍速
 - **引擎模式**: ABC + dataclass Result + 工厂函数（白名单校验）
 - **模板系统**: BaseTemplate ABC + Registry 字典 + @register 装饰器
 - **配置合并**: deep merge（template.defaults < 用户 config）
-- **Fallback**: 主引擎失败自动切换备用引擎（Gemini → Doubao）
+- **Fallback**: 主引擎失败自动切换备用引擎（支持链式：Gemini → Kling → Doubao；顺序由配置决定）
 - **路径兼容**: scene.py 回退到 `Path(__file__).parents[2]`，兼容直接 manim 调用
 - **Media 隔离**: 模板模式用模板名作 media 目录名，避免多模板冲突
 

@@ -2,8 +2,9 @@
 """
 Nano Banana Image Generator — 多引擎图片生成工具
 
-支持两个引擎:
-  - gemini (默认): Google GenAI SDK，走 Proxy 或 Official 模式
+支持三个引擎:
+  - gemini (默认): Google GenAI SDK，走 Proxy 或 Official 模式，支持图生图
+  - kling: sucloud Kling /kling/v1/images/generations，支持图生图
   - doubao: OpenAI 兼容 /v1/images/generations，支持图生图
 
 依赖:
@@ -56,7 +57,8 @@ VALID_IMAGE_SIZES = ["512px", "1K", "2K", "4K"]
 # 引擎 → 默认模型
 ENGINE_DEFAULTS = {
     "gemini": "gemini-3.1-flash-image-preview",
-    "doubao": "doubao-seedream-5-0-260128",
+    "kling": "kling-v3",
+    "doubao": "doubao-seedream-4-0-250828",
 }
 
 VALID_ENGINES = list(ENGINE_DEFAULTS.keys())
@@ -66,12 +68,13 @@ ASPECT_RATIO_TO_SIZE = {
     "1:1": "1024x1024",
     "2:3": "1024x1536",
     "3:2": "1536x1024",
-    "3:4": "1024x1365",
-    "4:3": "1365x1024",
+    # 竖屏视频 (3:4) 推荐 2K 级别，保证质量
+    "3:4": "1536x2048",
+    "4:3": "1024x768",
     "4:5": "1024x1280",
     "5:4": "1280x1024",
-    "9:16": "1024x1820",
-    "16:9": "1820x1024",
+    "9:16": "576x1024",
+    "16:9": "1024x576",
 }
 
 # 重试配置
@@ -194,6 +197,110 @@ def _load_reference_image(input_path: str, target_aspect_ratio: str = None) -> s
     return f"data:{mime};base64,{b64}"
 
 
+def _strip_data_url(data_url: str) -> str:
+    """将 data URL 转为纯 base64（若不是 data URL 则原样返回）"""
+    if data_url.startswith("data:") and "," in data_url:
+        return data_url.split(",", 1)[1]
+    return data_url
+
+
+def _extract_image_payload(data):
+    """尝试从响应中提取图片 payload（base64 或 url）。"""
+    def _from_dict(item):
+        if not isinstance(item, dict):
+            return None
+        for key in ("b64_json", "base64", "image"):
+            val = item.get(key)
+            if isinstance(val, str) and val:
+                return ("base64", val)
+        for key in ("url", "image_url", "download_url"):
+            val = item.get(key)
+            if isinstance(val, str) and val:
+                return ("url", val)
+        return None
+
+    if isinstance(data, dict):
+        direct = _from_dict(data)
+        if direct:
+            return direct
+        for key in ("data", "images", "result", "results", "output"):
+            val = data.get(key)
+            if isinstance(val, list):
+                for item in val:
+                    direct = _from_dict(item)
+                    if direct:
+                        return direct
+            elif isinstance(val, dict):
+                direct = _from_dict(val)
+                if direct:
+                    return direct
+                for subkey in ("data", "images", "result", "results", "output"):
+                    subval = val.get(subkey)
+                    if isinstance(subval, list):
+                        for item in subval:
+                            direct = _from_dict(item)
+                            if direct:
+                                return direct
+                    elif isinstance(subval, dict):
+                        direct = _from_dict(subval)
+                        if direct:
+                            return direct
+    return None
+
+
+def _encode_pil_image_for_gemini(img: "PILImage.Image"):
+    """将 PIL Image 编码为 (bytes, mime_type) 供 Gemini 使用。"""
+    import io
+
+    fmt = (img.format or "").upper()
+    if fmt in ("JPEG", "JPG"):
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        out_format = "JPEG"
+        mime_type = "image/jpeg"
+    else:
+        if img.mode == "P":
+            img = img.convert("RGBA")
+        out_format = "PNG"
+        mime_type = "image/png"
+
+    buf = io.BytesIO()
+    img.save(buf, format=out_format)
+    return buf.getvalue(), mime_type
+
+
+def _load_reference_image_for_gemini(input_image):
+    """加载参考图片为 (bytes, mime_type)（Gemini img2img）。"""
+    if not HAS_PIL:
+        raise ValueError("Pillow is required for --input with gemini engine. Install Pillow first.")
+    if isinstance(input_image, PILImage.Image):
+        return _encode_pil_image_for_gemini(input_image)
+    p = Path(input_image)
+    if not p.exists():
+        raise FileNotFoundError(f"Reference image not found: {input_image}")
+    with PILImage.open(p) as img:
+        return _encode_pil_image_for_gemini(img)
+
+
+def _format_prompt(prompt: str, negative_prompt: str = None,
+                   input_image: str = None, strength: float = None,
+                   aspect_ratio: str = None, include_ar: bool = False) -> str:
+    """统一构建 prompt，支持图生图指令与负面提示词。"""
+    base_prompt = prompt
+    if input_image:
+        if strength is None:
+            base_prompt = f"基于这张参考图，保持整体风格但重新绘制：{prompt}"
+        else:
+            base_prompt = (
+                f"基于这张参考图（参考强度 {strength:.2f}），保持整体风格但重新绘制：{prompt}"
+            )
+    if include_ar and aspect_ratio:
+        base_prompt = f"{base_prompt} --ar {aspect_ratio}"
+    if negative_prompt:
+        base_prompt += f"\n\nNegative prompt: {negative_prompt}"
+    return base_prompt
+
+
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║  Gemini — Google GenAI SDK (Official / Proxy)                   ║
 # ╚══════════════════════════════════════════════════════════════════╝
@@ -201,16 +308,18 @@ def _load_reference_image(input_path: str, target_aspect_ratio: str = None) -> s
 def _generate_gemini_official(api_key: str, prompt: str, negative_prompt: str = None,
                               aspect_ratio: str = "1:1", image_size: str = "2K",
                               output_dir: str = None, filename: str = None,
-                              model: str = "gemini-3.1-flash-image-preview") -> str:
+                              model: str = "gemini-3.1-flash-image-preview",
+                              input_image: str = None, strength: float = None) -> str:
     """Official Mode: 直连 Google 官方 GenAI API (流式)"""
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=api_key)
 
-    final_prompt = prompt
-    if negative_prompt:
-        final_prompt += f"\n\nNegative prompt: {negative_prompt}"
+    final_prompt = _format_prompt(
+        prompt, negative_prompt, input_image, strength,
+        aspect_ratio=aspect_ratio, include_ar=False,
+    )
 
     config_kwargs = {
         "response_modalities": ["IMAGE"],
@@ -223,16 +332,25 @@ def _generate_gemini_official(api_key: str, prompt: str, negative_prompt: str = 
         config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level="MINIMAL")
     config = types.GenerateContentConfig(**config_kwargs)
 
-    print(f"[Gemini Official Mode]")
+    ref_part = None
+    if input_image:
+        ref_bytes, ref_mime = _load_reference_image_for_gemini(input_image)
+        ref_part = types.Part.from_bytes(data=ref_bytes, mime_type=ref_mime)
+
+    contents = [final_prompt] if ref_part is None else [ref_part, final_prompt]
+
+    print("[Gemini Official Mode]")
     print(f"  Model:        {model}")
     print(f"  Prompt:       {final_prompt[:120]}{'...' if len(final_prompt) > 120 else ''}")
     print(f"  Aspect Ratio: {aspect_ratio}")
     print(f"  Image Size:   {image_size}")
+    if input_image:
+        print(f"  Input Image:  {input_image}")
     print()
 
     import threading
     start_time = time.time()
-    print(f"  ⏳ Generating...", end="", flush=True)
+    print("  ⏳ Generating...", end="", flush=True)
 
     heartbeat_stop = threading.Event()
 
@@ -251,12 +369,18 @@ def _generate_gemini_official(api_key: str, prompt: str, negative_prompt: str = 
     total_bytes = 0
 
     for chunk in client.models.generate_content_stream(
-        model=model, contents=[final_prompt], config=config,
+        model=model, contents=contents, config=config,
     ):
         elapsed = time.time() - start_time
-        if chunk.parts is None:
+        parts = getattr(chunk, "parts", None)
+        if not parts:
+            candidates = getattr(chunk, "candidates", None) or []
+            if candidates:
+                content = getattr(candidates[0], "content", None)
+                parts = getattr(content, "parts", None)
+        if not parts:
             continue
-        for part in chunk.parts:
+        for part in parts:
             if part.text is not None:
                 print(f"\n  Model says: {part.text}", end="", flush=True)
             elif part.inline_data is not None:
@@ -275,7 +399,7 @@ def _generate_gemini_official(api_key: str, prompt: str, negative_prompt: str = 
 
     if last_image_data is not None and last_image_data.inline_data is not None:
         if chunk_count > 1:
-            print(f"  Keeping the final chunk (highest quality).")
+            print("  Keeping the final chunk (highest quality).")
         image = last_image_data.as_image()
         path = _resolve_output_path(prompt, output_dir, filename, ".png")
         image.save(path)
@@ -290,7 +414,8 @@ def _generate_gemini_proxy(api_key: str, base_url: str, prompt: str,
                            negative_prompt: str = None,
                            aspect_ratio: str = "1:1", image_size: str = "4K",
                            output_dir: str = None, filename: str = None,
-                           model: str = "gemini-3.1-flash-image-preview") -> str:
+                           model: str = "gemini-3.1-flash-image-preview",
+                           input_image: str = None, strength: float = None) -> str:
     """Proxy Mode: 通过 sucloud 等代理访问 Gemini (Google GenAI SDK 流式)"""
     from google import genai
     from google.genai import types
@@ -300,19 +425,41 @@ def _generate_gemini_proxy(api_key: str, base_url: str, prompt: str,
         http_options={'base_url': base_url},
     )
 
-    final_prompt = f"{prompt} --ar {aspect_ratio}"
-    if negative_prompt:
-        final_prompt += f"\n\nNegative prompt: {negative_prompt}"
+    final_prompt = _format_prompt(
+        prompt, negative_prompt, input_image, strength,
+        aspect_ratio=aspect_ratio, include_ar=False,
+    )
 
-    config = types.GenerateContentConfig(response_modalities=["IMAGE"])
-    contents = [types.Content(role="user", parts=[types.Part.from_text(text=final_prompt)])]
+    config_kwargs = {
+        "response_modalities": ["IMAGE"],
+        "image_config": types.ImageConfig(
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+        ),
+    }
+    if "flash" in model.lower():
+        config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level="MINIMAL")
+    config = types.GenerateContentConfig(**config_kwargs)
 
-    print(f"[Gemini Proxy Mode]")
+    ref_part = None
+    if input_image:
+        ref_bytes, ref_mime = _load_reference_image_for_gemini(input_image)
+        ref_part = types.Part.from_bytes(data=ref_bytes, mime_type=ref_mime)
+
+    parts = [types.Part.from_text(text=final_prompt)]
+    if ref_part is not None:
+        parts = [ref_part, types.Part.from_text(text=final_prompt)]
+
+    contents = [types.Content(role="user", parts=parts)]
+
+    print("[Gemini Proxy Mode]")
     print(f"  Base URL:     {base_url}")
     print(f"  Model:        {model}")
     print(f"  Prompt:       {final_prompt[:120]}{'...' if len(final_prompt) > 120 else ''}")
     print(f"  Aspect Ratio: {aspect_ratio}")
     print(f"  Image Size:   {image_size}")
+    if input_image:
+        print(f"  Input Image:  {input_image}")
     print()
 
     last_image_data = None
@@ -322,14 +469,12 @@ def _generate_gemini_proxy(api_key: str, base_url: str, prompt: str,
         model=model, contents=contents, config=config,
     ):
         # 从 chunk 中提取 parts（兼容两种响应格式）
-        parts = None
-        if chunk.parts:
-            parts = chunk.parts
-        elif (hasattr(chunk, 'candidates') and chunk.candidates
-              and chunk.candidates[0].content
-              and chunk.candidates[0].content.parts):
-            parts = chunk.candidates[0].content.parts
-
+        parts = getattr(chunk, "parts", None)
+        if not parts:
+            candidates = getattr(chunk, "candidates", None) or []
+            if candidates:
+                content = getattr(candidates[0], "content", None)
+                parts = getattr(content, "parts", None)
         if not parts:
             continue
         part = parts[0]
@@ -357,6 +502,186 @@ def _generate_gemini_proxy(api_key: str, base_url: str, prompt: str,
 
 
 # ╔══════════════════════════════════════════════════════════════════╗
+# ║  Kling — sucloud /kling/v1/images/generations                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+def _generate_kling(api_key: str, base_url: str, prompt: str,
+                    negative_prompt: str = None,
+                    aspect_ratio: str = "1:1",
+                    output_dir: str = None, filename: str = None,
+                    model: str = "kling-v3",
+                    input_image: str = None,
+                    strength: float = None) -> str:
+    """
+    sucloud Kling 接口: POST /kling/v1/images/generations
+    支持文生图/图生图（传入 base64 image）。
+    """
+    import httpx
+
+    def _save_payload(payload):
+        kind, value = payload
+        if kind == "base64":
+            b64_value = value.strip()
+            ext = ".png"
+            if b64_value.startswith("data:") and "," in b64_value:
+                header, b64_value = b64_value.split(",", 1)
+                mime = header.split(":", 1)[1].split(";", 1)[0] if ":" in header else "image/png"
+                ext = mimetypes.guess_extension(mime) or ".png"
+
+            img_bytes = base64.b64decode(b64_value)
+            jpg_offset = img_bytes.find(b'\xff\xd8\xff')
+            png_offset = img_bytes.find(b'\x89PNG\r\n\x1a\n')
+            if jpg_offset >= 0 and (png_offset < 0 or jpg_offset < png_offset):
+                img_bytes = img_bytes[jpg_offset:]
+                ext = '.jpg'
+            elif png_offset >= 0:
+                img_bytes = img_bytes[png_offset:]
+                ext = '.png'
+
+            path = _resolve_output_path(prompt, output_dir, filename, ext)
+            save_binary_file(path, img_bytes)
+            _report_resolution(path)
+            return path
+
+        image_url = value
+        print(f"  Image URL: {image_url[:100]}...")
+        dl_url = image_url.replace("https://", "http://", 1)
+        dl_resp = httpx.get(dl_url, timeout=60, follow_redirects=True)
+        dl_resp.raise_for_status()
+        content_type = dl_resp.headers.get("content-type", "image/png")
+        ext = mimetypes.guess_extension(content_type.split(";")[0]) or ".png"
+        if ext in ('.jpe', '.jpeg'):
+            ext = '.jpg'
+        path = _resolve_output_path(prompt, output_dir, filename, ext)
+        save_binary_file(path, dl_resp.content)
+        _report_resolution(path)
+        return path
+
+    def _poll_for_result(task_id: str, headers: dict):
+        poll_url = f"{base_url.rstrip('/')}/kling/v1/images/generations/{task_id}"
+        timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
+        start = time.time()
+        poll_interval = 3.0
+        max_wait = 60.0
+        while time.time() - start < max_wait:
+            resp = httpx.get(poll_url, headers=headers, timeout=timeout, verify=False)
+            resp.raise_for_status()
+            data = resp.json()
+            task_data = data.get("data") if isinstance(data, dict) else None
+            if not isinstance(task_data, dict):
+                raise RuntimeError(f"Unexpected Kling poll response: {data}")
+            status = str(task_data.get("task_status", "")).lower()
+            if status == "succeed":
+                task_result = task_data.get("task_result") or {}
+                images = task_result.get("images") if isinstance(task_result, dict) else None
+                if isinstance(images, list) and images:
+                    first = images[0] if isinstance(images[0], dict) else None
+                    if first and isinstance(first.get("url"), str) and first.get("url"):
+                        return data, ("url", first["url"])
+                payload = (
+                    _extract_image_payload(task_result)
+                    or _extract_image_payload(task_data)
+                    or _extract_image_payload(data)
+                )
+                if payload:
+                    return data, payload
+                raise RuntimeError(f"Kling task succeed but no image url: {data}")
+            if status == "failed":
+                raise RuntimeError(f"Kling task failed: {data}")
+            time.sleep(poll_interval)
+        raise RuntimeError("Kling task polling timed out (60s).")
+
+    url = f"{base_url.rstrip('/')}/kling/v1/images/generations"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    body = {
+        "model_name": model,
+        "prompt": prompt,
+        "n": 1,
+    }
+    if negative_prompt:
+        body["negative_prompt"] = negative_prompt
+    if aspect_ratio:
+        body["aspect_ratio"] = aspect_ratio
+    if input_image:
+        body["image"] = input_image
+        if strength is not None:
+            body["image_fidelity"] = strength
+
+    mode_label = "图生图" if input_image else "文生图"
+    print(f"[Kling Mode — {mode_label}]")
+    print(f"  Base URL:     {base_url}")
+    print(f"  Model:        {model}")
+    print(f"  Prompt:       {prompt[:120]}{'...' if len(prompt) > 120 else ''}")
+    if negative_prompt:
+        print(f"  Negative:     {negative_prompt[:120]}{'...' if len(negative_prompt) > 120 else ''}")
+    if aspect_ratio:
+        print(f"  Aspect:       {aspect_ratio}")
+    if input_image:
+        print(f"  Input Image:  base64 ({len(input_image)} chars)")
+        if strength is not None:
+            print(f"  Fidelity:     {strength}")
+    print()
+
+    start_time = time.time()
+    print("  ⏳ Generating...", end="", flush=True)
+
+    timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
+    resp = httpx.post(url, json=body, headers=headers, timeout=timeout, verify=False)
+
+    elapsed = time.time() - start_time
+
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        err_msg = data.get("error", {}).get("message", str(e))
+        raise RuntimeError(f"Kling API error ({resp.status_code}): {err_msg}") from e
+
+    data = resp.json()
+    task_data = data.get("data") if isinstance(data, dict) else None
+    if isinstance(task_data, dict):
+        task_status = str(task_data.get("task_status", "")).lower()
+        if task_status == "succeed":
+            task_result = task_data.get("task_result") or {}
+            images = task_result.get("images") if isinstance(task_result, dict) else None
+            if isinstance(images, list) and images:
+                first = images[0] if isinstance(images[0], dict) else None
+                if first and isinstance(first.get("url"), str) and first.get("url"):
+                    print(f"\n  ✅ Generated ({elapsed:.1f}s)")
+                    return _save_payload(("url", first["url"]))
+            payload = (
+                _extract_image_payload(task_result)
+                or _extract_image_payload(task_data)
+                or _extract_image_payload(data)
+            )
+            if payload:
+                print(f"\n  ✅ Generated ({elapsed:.1f}s)")
+                return _save_payload(payload)
+            raise RuntimeError(f"Kling task succeed but no image url: {data}")
+        if task_status == "failed":
+            raise RuntimeError(f"Kling task failed: {data}")
+        task_id = task_data.get("task_id")
+    else:
+        task_id = data.get("task_id") if isinstance(data, dict) else None
+
+    if task_id:
+        print("\n  🔄 Kling returned async task, polling for result...")
+        data, payload = _poll_for_result(task_id, headers)
+        return _save_payload(payload)
+
+    payload = _extract_image_payload(data)
+    if payload:
+        print(f"\n  ✅ Generated ({elapsed:.1f}s)")
+        return _save_payload(payload)
+
+    raise RuntimeError(f"Unexpected Kling response format: {data}")
+
+
+# ╔══════════════════════════════════════════════════════════════════╗
 # ║  Doubao — OpenAI 兼容 /v1/images/generations                    ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
@@ -364,7 +689,7 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
                      negative_prompt: str = None,
                      aspect_ratio: str = "1:1",
                      output_dir: str = None, filename: str = None,
-                     model: str = "doubao-seedream-5-0-260128",
+                     model: str = "doubao-seedream-4-0-250828",
                      input_image: str = None,
                      strength: float = None) -> str:
     """
@@ -391,11 +716,19 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
         "n": 1,
         "size": size,
         "response_format": "b64_json",
+        "watermark": False,
+        "stream": False,
+        "sequential_image_generation": "disabled",
     }
 
     mode_label = "图生图" if input_image else "文生图"
     if input_image:
-        body["image"] = input_image
+        if input_image.startswith("http"):
+            body["image"] = input_image
+        elif input_image.startswith("data:"):
+            body["image"] = input_image
+        else:
+            body["image"] = f"data:image/png;base64,{input_image}"
         if strength is not None:
             body["strength"] = strength
 
@@ -412,7 +745,7 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
     print()
 
     start_time = time.time()
-    print(f"  ⏳ Generating...", end="", flush=True)
+    print("  ⏳ Generating...", end="", flush=True)
 
     timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
     resp = httpx.post(url, json=body, headers=headers, timeout=timeout, verify=False)
@@ -454,7 +787,7 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
         if jpg_offset > 0 or png_offset > 0:
             print(f"  Mode: b64_json (跳过 {max(jpg_offset, png_offset)} 字节 AIGC 水印头)")
         else:
-            print(f"  Mode: b64_json (直接解码，跳过 CDN)")
+            print("  Mode: b64_json (直接解码，跳过 CDN)")
         path = _resolve_output_path(prompt, output_dir, filename, ext)
         save_binary_file(path, img_bytes)
     else:
@@ -499,8 +832,8 @@ def generate(prompt: str, negative_prompt: str = None,
         output_dir: 输出目录
         filename: 输出文件名 (不含扩展名)
         model: 模型名称（默认按 engine 自动选择）
-        engine: 引擎 "gemini" | "doubao"
-        input_image: 参考图片路径（仅 doubao 引擎支持图生图）
+        engine: 引擎 "gemini" | "kling" | "doubao"
+        input_image: 参考图片路径（gemini / kling / doubao 均支持）
         max_retries: 最大重试次数
 
     Returns:
@@ -518,13 +851,15 @@ def generate(prompt: str, negative_prompt: str = None,
     if model is None:
         model = ENGINE_DEFAULTS[engine]
 
-    # 加载参考图片
+    # 加载参考图片（doubao / kling 需要 base64）
     ref_data = None
     if input_image:
-        if engine != "doubao":
-            raise ValueError("--input (图生图) only supported with --engine doubao")
-        ref_data = _load_reference_image(input_image, target_aspect_ratio=aspect_ratio)
-        print(f"  Loaded reference image: {input_image}")
+        if engine in ("doubao", "kling"):
+            target_ar = aspect_ratio if engine == "doubao" else None
+            ref_data = _load_reference_image(input_image, target_aspect_ratio=target_ar)
+            if engine == "kling":
+                ref_data = _strip_data_url(ref_data)
+            print(f"  Loaded reference image: {input_image}")
 
     # Gemini 引擎校验
     if engine == "gemini":
@@ -546,16 +881,26 @@ def generate(prompt: str, negative_prompt: str = None,
                     aspect_ratio, output_dir, filename, model, ref_data,
                     strength,
                 )
+            elif engine == "kling":
+                if not base_url:
+                    raise ValueError("GEMINI_BASE_URL is required for kling engine (sucloud proxy)")
+                return _generate_kling(
+                    api_key, base_url, prompt, negative_prompt,
+                    aspect_ratio, output_dir, filename, model, ref_data,
+                    strength,
+                )
             else:  # gemini
                 if base_url:
                     return _generate_gemini_proxy(
                         api_key, base_url, prompt, negative_prompt,
                         aspect_ratio, image_size, output_dir, filename, model,
+                        input_image, strength,
                     )
                 else:
                     return _generate_gemini_official(
                         api_key, prompt, negative_prompt,
                         aspect_ratio, image_size, output_dir, filename, model,
+                        input_image, strength,
                     )
         except Exception as e:
             last_error = e
@@ -577,7 +922,7 @@ def generate(prompt: str, negative_prompt: str = None,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Nano Banana — 多引擎图片生成工具 (gemini / doubao)"
+        description="Nano Banana — 多引擎图片生成工具 (gemini / kling / doubao)"
     )
     parser.add_argument(
         "prompt", nargs="?", default="Nano Banana",
@@ -585,7 +930,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--engine", "-e", default="gemini", choices=VALID_ENGINES,
-        help=f"Engine to use. Default: gemini."
+        help="Engine to use. Default: gemini."
     )
     parser.add_argument(
         "--negative_prompt", "-n", default=None,
@@ -593,7 +938,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--aspect_ratio", default="1:1", choices=VALID_ASPECT_RATIOS,
-        help=f"Aspect ratio. Default: 1:1."
+        help="Aspect ratio. Default: 1:1."
     )
     parser.add_argument(
         "--image_size", default="2K",
@@ -601,7 +946,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--input", "-i", default=None, dest="input_image",
-        help="Reference image path for image-to-image (doubao only)."
+        help="Reference image path for image-to-image (gemini / kling / doubao)."
     )
     parser.add_argument(
         "--output", "-o", default=None,
@@ -613,11 +958,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--model", "-m", default=None,
-        help=f"Model name. Defaults: gemini={ENGINE_DEFAULTS['gemini']}, doubao={ENGINE_DEFAULTS['doubao']}."
+        help=(
+            f"Model name. Defaults: gemini={ENGINE_DEFAULTS['gemini']}, "
+            f"kling={ENGINE_DEFAULTS['kling']}, doubao={ENGINE_DEFAULTS['doubao']}."
+        )
     )
     parser.add_argument(
         "--strength", "-s", type=float, default=None,
-        help="Reference image strength for img2img (doubao only). 0.0=keep original, 1.0=ignore. Default: 0.5."
+        help=("Reference image strength for img2img. 0.0=keep original, 1.0=ignore. "
+              "Gemini uses it as prompt hint. Default: 0.5.")
     )
 
     args = parser.parse_args()

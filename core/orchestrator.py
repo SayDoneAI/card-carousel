@@ -285,15 +285,38 @@ def step_illustrations(cfg):
     # 获取主引擎
     primary_engine = get_image_engine(illus_cfg, gen_tool=gen_tool)
 
-    # 准备 fallback 引擎（若配置了）
-    fallback_engine_name = illus_cfg.get("fallback_engine")
-    fallback_model = illus_cfg.get("fallback_model")
-    fallback_engine = None
-    if fallback_engine_name:
-        fallback_cfg = dict(illus_cfg)
-        fallback_cfg["engine"] = fallback_engine_name
-        fallback_cfg["model"] = fallback_model
-        fallback_engine = get_image_engine(fallback_cfg, gen_tool=gen_tool)
+    # 准备 fallback 引擎（若配置了，支持链式 fallback）
+    fallback_spec = illus_cfg.get("fallback_engines")
+    if fallback_spec is None:
+        fallback_spec = illus_cfg.get("fallback_engine")
+    if isinstance(fallback_spec, (list, tuple)):
+        fallback_engine_names = [name for name in fallback_spec if name]
+    elif fallback_spec:
+        fallback_engine_names = [fallback_spec]
+    else:
+        fallback_engine_names = []
+
+    fallback_models_spec = illus_cfg.get("fallback_models")
+    if fallback_models_spec is None:
+        fallback_models_spec = illus_cfg.get("fallback_model")
+    if isinstance(fallback_models_spec, (list, tuple)):
+        fallback_models = list(fallback_models_spec)
+    elif fallback_models_spec:
+        fallback_models = [fallback_models_spec]
+    else:
+        fallback_models = []
+
+    if len(fallback_models) < len(fallback_engine_names):
+        fallback_models.extend([None] * (len(fallback_engine_names) - len(fallback_models)))
+
+    fallback_chain = []
+    for idx, fb_name in enumerate(fallback_engine_names):
+        if fb_name == engine_name:
+            continue
+        fb_cfg = dict(illus_cfg)
+        fb_cfg["engine"] = fb_name
+        fb_cfg["model"] = fallback_models[idx] if idx < len(fallback_models) else None
+        fallback_chain.append((fb_name, fb_cfg["model"], get_image_engine(fb_cfg, gen_tool=gen_tool)))
 
     generated = 0
     skipped = 0
@@ -336,11 +359,19 @@ def step_illustrations(cfg):
         img_result = primary_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image, strength=illus_strength)
 
         if not img_result.success:
-            if fallback_engine:
-                print(f"    主引擎失败 ({img_result.error})，尝试 fallback ({fallback_engine_name})...")
-                fb_result = fallback_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image, strength=illus_strength)
-                if not fb_result.success:
-                    print(f"    fallback 生成失败: {fb_result.error}")
+            if fallback_chain:
+                last_error = img_result.error
+                recovered = False
+                for fb_name, fb_model, fb_engine in fallback_chain:
+                    fb_label = f"{fb_name} ({fb_model})" if fb_model else fb_name
+                    print(f"    主引擎失败 ({last_error})，尝试 fallback ({fb_label})...")
+                    fb_result = fb_engine.generate(prompt, out_path, aspect_ratio=illus_aspect_ratio, input_image=input_image, strength=illus_strength)
+                    if fb_result.success:
+                        recovered = True
+                        break
+                    last_error = fb_result.error
+                    print(f"    fallback {fb_name} 失败: {fb_result.error}")
+                if not recovered:
                     failed += 1
                     continue
             else:

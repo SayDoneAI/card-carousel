@@ -2,6 +2,14 @@ name: portrait-notebook
 description: "人像卡片 — 真人照片背景 + AI插画 + 字幕"
 
 illustrations:
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
   remove_bg: false
   use_character: true
   use_reference_image: false

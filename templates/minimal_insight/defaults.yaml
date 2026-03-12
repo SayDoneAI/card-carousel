@@ -2,6 +2,14 @@ name: minimal-insight
 description: "极简洞见 — 竖屏白底大字卡片 + 水墨插画 + 底栏标签"
 
 illustrations:
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
   use_character: false
   use_reference_image: false
   style_prompt: "Minimalist line drawing illustration, black ink with red accents only, simple clean sketch on pure white background, no background elements, no border, no frame, no text, centered composition, the illustration should seamlessly blend into a white page"
