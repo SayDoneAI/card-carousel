@@ -58,7 +58,7 @@ VALID_IMAGE_SIZES = ["512px", "1K", "2K", "4K"]
 ENGINE_DEFAULTS = {
     "gemini": "gemini-3.1-flash-image-preview",
     "kling": "kling-v3",
-    "doubao": "doubao-seedream-4-0-250828",
+    "doubao": "doubao-seedream-5-0-260128",
 }
 
 VALID_ENGINES = list(ENGINE_DEFAULTS.keys())
@@ -689,7 +689,7 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
                      negative_prompt: str = None,
                      aspect_ratio: str = "1:1",
                      output_dir: str = None, filename: str = None,
-                     model: str = "doubao-seedream-4-0-250828",
+                     model: str = "doubao-seedream-5-0-260128",
                      input_image: str = None,
                      strength: float = None) -> str:
     """
