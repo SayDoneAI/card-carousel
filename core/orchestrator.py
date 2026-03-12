@@ -196,15 +196,34 @@ def step_illustrations(cfg):
     # 品牌资产层：use_character / use_reference_image
     brand = cfg.get("_brand", {})
     brand_author = brand.get("author", {})
-    if illus_cfg.get("use_character") and brand_author.get("character_desc"):
-        style_prompt = f"{brand_author['character_desc']}, {style_prompt}" if style_prompt else brand_author["character_desc"]
-    if illus_cfg.get("use_reference_image") and brand_author.get("reference_image"):
-        # 仅在 content yaml 未显式指定 input_image 时自动补充
-        if not illus_cfg.get("input_image"):
+    character_desc = illus_cfg.get("character_desc") or brand_author.get("character_desc", "")
+    if illus_cfg.get("use_character") and character_desc:
+        # 支持 {character} 占位符，让模板控制人物描述的插入位置
+        if "{character}" in style_prompt:
+            style_prompt = style_prompt.replace("{character}", character_desc)
+        else:
+            style_prompt = f"{character_desc}, {style_prompt}" if style_prompt else character_desc
+    # 参考图控制：仅 use_reference_image=true 时允许 input_image
+    use_ref = illus_cfg.get("use_reference_image")
+    if use_ref is True:
+        # 自动注入 brand 参考图（content yaml 未显式指定时）
+        if not illus_cfg.get("input_image") and brand_author.get("reference_image"):
             illus_cfg = dict(illus_cfg)
             illus_cfg["input_image"] = brand_author["reference_image"]
             if "strength" not in illus_cfg and brand_author.get("reference_strength") is not None:
                 illus_cfg["strength"] = brand_author["reference_strength"]
+    else:
+        # use_reference_image 未设置或为 false → 清除 input_image，纯文生图
+        if illus_cfg.get("input_image"):
+            print("  ⚠️  use_reference_image 未启用，已忽略 input_image（推荐使用纯文字 character_desc 替代参考图）")
+            illus_cfg = dict(illus_cfg) if not isinstance(illus_cfg, dict) else illus_cfg
+            illus_cfg.pop("input_image", None)
+            illus_cfg.pop("strength", None)
+        # 迁移提示：brand.yaml 有旧字段但未启用
+        if brand_author.get("reference_image") and use_ref is not True:
+            print("  💡 检测到 brand.yaml 中有 reference_image，但 use_reference_image 未启用。")
+            print("     如需使用参考图，请设置 illustrations.use_reference_image: true")
+            print("     推荐方案：使用 character_desc 纯文字描述替代参考图")
     project_dir = cfg["_project_dir"]
     cache_dir = os.path.join(project_dir, illus_cfg.get("cache_dir", ".cache/illustrations"))
     os.makedirs(cache_dir, exist_ok=True)
@@ -296,7 +315,12 @@ def step_illustrations(cfg):
             continue
 
         if style_prompt:
-            prompt = style_prompt.replace("表达概念", f"表达「{kw}」的概念") if "表达概念" in style_prompt else f"{style_prompt}，主题内容：{kw}"
+            # 支持占位符 {keyword} — 用户可精确控制关键词插入位置
+            if "{keyword}" in style_prompt:
+                prompt = style_prompt.replace("{keyword}", kw)
+            else:
+                # 默认：内容主题在前，风格约束在后（提升内容匹配度）
+                prompt = f"主题内容：「{kw}」。\n\n风格要求：{style_prompt}"
         else:
             prompt = kw
         print(f"  [{kw}] 生成中...")

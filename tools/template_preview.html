@@ -1191,6 +1191,10 @@
           ui.panelBody.appendChild(group.section);
         }
 
+        // 插画提示词区块
+        const illuSection = renderIllustrationKeywordsSection();
+        if (illuSection) ui.panelBody.appendChild(illuSection);
+
         // 二级：品牌 & 装饰（折叠组）
         const secondaryEls = secondaryIds.filter(id => byId[id]);
         if (secondaryEls.length > 0) {
@@ -1223,10 +1227,122 @@
           group.content.appendChild(renderBackgroundAndPaletteSection());
           ui.panelBody.appendChild(group.section);
         }
+
+        // 音频试听区块
+        const audioSection = renderAudioPreviewSection();
+        if (audioSection) ui.panelBody.appendChild(audioSection);
       } else {
         ui.panelBody.appendChild(renderBackgroundAndPaletteSection());
       }
     }
+
+    // ── 插画提示词编辑区块 ──────────────────────────────────────────────────
+    function renderIllustrationKeywordsSection() {
+      const scene = currentScenes[0];
+      if (!scene) return null;
+      if (!scene.illustration_keywords) scene.illustration_keywords = [];
+
+      const group = renderGroupSection('插画提示词', false);
+      const container = document.createElement('div');
+      container.style.padding = '8px 12px';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '6px';
+
+      const hint = document.createElement('div');
+      hint.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:4px;';
+      hint.textContent = '每行一个关键词，留空表示复用上一张插画（null）';
+      container.appendChild(hint);
+
+      const keywords = scene.illustration_keywords;
+      keywords.forEach((kw, idx) => {
+        const row = document.createElement('div');
+        row.className = 'tag-input';
+
+        if (kw === null) {
+          // null 值：显示复用标记 + 转换按钮
+          const badge = document.createElement('span');
+          badge.style.cssText = 'flex:1;font-size:12px;color:var(--muted);font-style:italic;padding:6px 10px;background:#f1f5f9;border-radius:6px;';
+          badge.textContent = '↑ 复用上一张';
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.textContent = '编辑';
+          editBtn.addEventListener('click', () => {
+            scene.illustration_keywords[idx] = '';
+            saveScenesForTemplate(currentTemplate);
+            renderParamPanel();
+          });
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '删除';
+          removeBtn.addEventListener('click', () => {
+            scene.illustration_keywords.splice(idx, 1);
+            saveScenesForTemplate(currentTemplate);
+            renderParamPanel();
+          });
+          row.appendChild(badge);
+          row.appendChild(editBtn);
+          row.appendChild(removeBtn);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = kw;
+          input.placeholder = '输入插画关键词...';
+          input.addEventListener('input', (e) => {
+            scene.illustration_keywords[idx] = e.target.value;
+            saveScenesForTemplate(currentTemplate);
+          });
+          const nullBtn = document.createElement('button');
+          nullBtn.type = 'button';
+          nullBtn.textContent = '复用';
+          nullBtn.title = '设为复用上一张（null）';
+          nullBtn.addEventListener('click', () => {
+            scene.illustration_keywords[idx] = null;
+            saveScenesForTemplate(currentTemplate);
+            renderParamPanel();
+          });
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '删除';
+          removeBtn.addEventListener('click', () => {
+            scene.illustration_keywords.splice(idx, 1);
+            saveScenesForTemplate(currentTemplate);
+            renderParamPanel();
+          });
+          row.appendChild(input);
+          row.appendChild(nullBtn);
+          row.appendChild(removeBtn);
+        }
+        container.appendChild(row);
+      });
+
+      // 添加按钮行
+      const addRow = document.createElement('div');
+      addRow.style.cssText = 'display:flex;gap:6px;margin-top:4px;';
+      const addKeywordBtn = document.createElement('button');
+      addKeywordBtn.textContent = '+ 关键词';
+      addKeywordBtn.addEventListener('click', () => {
+        scene.illustration_keywords.push('');
+        saveScenesForTemplate(currentTemplate);
+        renderParamPanel();
+      });
+      const addNullBtn = document.createElement('button');
+      addNullBtn.textContent = '+ 复用上一张';
+      addNullBtn.addEventListener('click', () => {
+        scene.illustration_keywords.push(null);
+        saveScenesForTemplate(currentTemplate);
+        renderParamPanel();
+      });
+      addRow.appendChild(addKeywordBtn);
+      addRow.appendChild(addNullBtn);
+      container.appendChild(addRow);
+
+      group.content.appendChild(container);
+      return group.section;
+    }
+
+    // renderAudioPreviewSection 已移除 — TTS 合成由 pipeline 统一处理
+    function renderAudioPreviewSection() { return null; }
 
     // ── 折叠分组状态记忆 ──────────────────────────────────────────────────────
     const _groupCollapsedState = {};  // title -> boolean

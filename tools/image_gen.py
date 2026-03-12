@@ -390,7 +390,7 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
         "prompt": final_prompt,
         "n": 1,
         "size": size,
-        "response_format": "url",
+        "response_format": "b64_json",
     }
 
     mode_label = "图生图" if input_image else "文生图"
@@ -431,25 +431,48 @@ def _generate_doubao(api_key: str, base_url: str, prompt: str,
     if not items or not isinstance(items, list) or not isinstance(items[0], dict):
         raise RuntimeError(f"Unexpected response format: {data}")
 
-    image_url = items[0].get("url")
-    if not image_url:
-        raise RuntimeError(f"Response missing 'url' field")
+    item = items[0]
+    b64_data = item.get("b64_json")
 
     print(f"\n  ✅ Generated ({elapsed:.1f}s)")
-    print(f"  Image URL: {image_url[:100]}...")
 
-    # 下载图片保存到本地（volces.com CDN SSL 不稳定，强制走 HTTP）
-    dl_url = image_url.replace("https://", "http://", 1)
-    dl_resp = httpx.get(dl_url, timeout=60, follow_redirects=True)
-    dl_resp.raise_for_status()
+    if b64_data:
+        # b64_json 模式：直接解码保存，无需下载 CDN
+        import base64 as b64mod
+        img_bytes = b64mod.b64decode(b64_data)
+        # 火山引擎可能在数据前插入 AIGC 水印头，需要找到真正的图片起始位置
+        jpg_offset = img_bytes.find(b'\xff\xd8\xff')
+        png_offset = img_bytes.find(b'\x89PNG\r\n\x1a\n')
+        if jpg_offset >= 0 and (png_offset < 0 or jpg_offset < png_offset):
+            img_bytes = img_bytes[jpg_offset:]
+            ext = '.jpg'
+        elif png_offset >= 0:
+            img_bytes = img_bytes[png_offset:]
+            ext = '.png'
+        else:
+            ext = '.png'
+        if jpg_offset > 0 or png_offset > 0:
+            print(f"  Mode: b64_json (跳过 {max(jpg_offset, png_offset)} 字节 AIGC 水印头)")
+        else:
+            print(f"  Mode: b64_json (直接解码，跳过 CDN)")
+        path = _resolve_output_path(prompt, output_dir, filename, ext)
+        save_binary_file(path, img_bytes)
+    else:
+        # fallback: URL 模式（兼容不支持 b64_json 的情况）
+        image_url = item.get("url")
+        if not image_url:
+            raise RuntimeError("Response missing both 'b64_json' and 'url' fields")
+        print(f"  Image URL: {image_url[:100]}...")
+        dl_url = image_url.replace("https://", "http://", 1)
+        dl_resp = httpx.get(dl_url, timeout=60, follow_redirects=True)
+        dl_resp.raise_for_status()
+        content_type = dl_resp.headers.get("content-type", "image/png")
+        ext = mimetypes.guess_extension(content_type.split(";")[0]) or ".png"
+        if ext in ('.jpe', '.jpeg'):
+            ext = '.jpg'
+        path = _resolve_output_path(prompt, output_dir, filename, ext)
+        save_binary_file(path, dl_resp.content)
 
-    content_type = dl_resp.headers.get("content-type", "image/png")
-    ext = mimetypes.guess_extension(content_type.split(";")[0]) or ".png"
-    if ext in ('.jpe', '.jpeg'):
-        ext = '.jpg'
-
-    path = _resolve_output_path(prompt, output_dir, filename, ext)
-    save_binary_file(path, dl_resp.content)
     _report_resolution(path)
     return path
 
