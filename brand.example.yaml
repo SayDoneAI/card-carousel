@@ -3,6 +3,13 @@
 # brand.yaml 已加入 .gitignore，不会提交到 git
 
 author:
-  character_desc: "光头男性人物绘制为Q版卡通小人，保持光头特征，放在画面一角做讲解动作"
-  reference_image: "assets/huangfu.png"   # 参考图路径（相对于项目根目录）
-  reference_strength: 0.3                 # img2img 参考强度，0.0=完全保留原图，1.0=完全忽略
+  character_desc: "画面右下角有一个Q版卡通小人：你的外貌特征描述"
+  # character_desc 优先级: content yaml > template defaults > brand.yaml
+  # 模板 style_prompt 中可用 {character} 占位符控制人物描述的插入位置
+  # 推荐用纯文字 character_desc 替代 img2img 参考图，效果更好且风格更一致
+
+voice:
+  provider: volcengine
+  voice_type: S_hIPCxNdV1           # 克隆音色 ID（火山引擎 mega_tts）
+  cluster: volcano_mega            # 克隆音色用 volcano_mega cluster
+  # 不填 voice 则使用默认预设音色 zh_male_ruyayichen_uranus_bigtts（volcano_tts cluster）

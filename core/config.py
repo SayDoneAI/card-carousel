@@ -209,9 +209,14 @@ def load_config(path: str) -> dict:
     # 这样作为 skill 使用时视频保存在用户当前目录
     cfg["output"].setdefault("dir", os.getcwd())
 
+    # voice 合并优先级: content yaml > brand.yaml > 硬编码默认值
     cfg.setdefault("voice", {})
+    brand_voice = brand.get("voice", {})
+    for k, v in brand_voice.items():
+        cfg["voice"].setdefault(k, v)
     cfg["voice"].setdefault("provider", "volcengine")
-    cfg["voice"].setdefault("voice_type", "zh-CN-YunxiNeural")
+    cfg["voice"].setdefault("voice_type", "zh_male_ruyayichen_uranus_bigtts")
+    cfg["voice"].setdefault("cluster", "volcano_tts")
     cfg["voice"].setdefault("speed", 1.0)
 
     cfg.setdefault("illustrations", {})
