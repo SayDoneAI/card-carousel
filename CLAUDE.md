@@ -15,6 +15,8 @@
 card-carousel/
 ├── pipeline.py              # CLI 入口（argparse → load_config → run_pipeline）
 ├── config.yaml              # 旧模式配置（无 template 字段）
+├── brand.example.yaml       # 品牌资产配置示例
+├── brand.yaml               # 本地品牌资产（gitignored）
 ├── explainer.py             # 向后兼容 shim → templates/minimal_insight/scene.py
 ├── core/
 │   ├── config.py            # 配置加载 + .env + 模板合并 + 路径派生
@@ -30,14 +32,27 @@ card-carousel/
 ├── templates/
 │   ├── __init__.py          # 模板 Registry + @register 装饰器
 │   ├── base.py              # BaseTemplate ABC
-│   └── minimal_insight/     # "极简洞见" 模板
-│       ├── __init__.py      # MinimalInsightTemplate 注册
+│   ├── shared.py            # 统一渲染引擎（GenericCardScene）
+│   ├── minimal_insight/     # "极简洞见" 模板
+│   │   ├── __init__.py      # MinimalInsightTemplate 注册
+│   │   ├── scene.py         # Manim 场景渲染（参数化颜色/字体/布局）
+│   │   └── defaults.yaml    # 模板默认配置
+│   └── portrait_notebook/   # "人物笔记" 模板
+│       ├── __init__.py      # PortraitNotebookTemplate 注册
 │       ├── scene.py         # Manim 场景渲染（参数化颜色/字体/布局）
 │       └── defaults.yaml    # 模板默认配置
 ├── content/
-│   └── example.yaml         # 新模式配置示例（带 template 字段）
+│   ├── example.yaml         # 新模式配置示例（带 template 字段）
+│   └── portrait_example.yaml  # 人物模板示例配置
+├── assets/
+│   ├── illustrations/       # Manim 引用的插画文件（从 cache 复制）
+│   └── huangfu.png          # 示例素材
+├── docs/
+│   └── POSITION_SYSTEM_SPEC.md # 位置系统规范
 └── tools/
-    └── image_gen.py         # AI 图片生成工具
+    ├── image_gen.py         # AI 图片生成工具
+    ├── preview_server.py    # 预览服务器
+    └── template_preview.html # 前端预览编辑器
 ```
 
 ## 两种配置模式

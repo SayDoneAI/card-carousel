@@ -5,8 +5,6 @@
 import os
 import textwrap
 
-import pytest
-
 
 def _write_config(tmpdir: str, yaml_content: str) -> str:
     """写入最小化 YAML 配置，创建占位文件，返回配置路径。"""

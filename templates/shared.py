@@ -27,7 +27,6 @@ if _DIR not in sys.path:
 from core.utils import (  # noqa: E402
     percent_to_manim,
     get_element_position,
-    is_explicitly_positioned,
     wrap_chinese,
     split_long_sentences,
     sanitize_filename,

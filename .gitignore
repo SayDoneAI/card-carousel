@@ -31,3 +31,7 @@ assets/illustrations/
 .pytest_cache/
 .ruff_cache/
 brand.yaml
+
+.conversations/
+.coverage
+*.backup
