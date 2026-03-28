@@ -25,6 +25,12 @@ class DarkCardTemplate(BaseTemplate):
     def get_scene_classes(self) -> list[str]:
         return ["DarkCardScene"]
 
+    def get_cover_manim_script(self) -> str | None:
+        return "templates/dark_card/cover.py"
+
+    def get_cover_scene_class(self) -> str | None:
+        return "DarkCardCover"
+
     def get_positionable_elements(self) -> list[dict]:
         defaults = self.get_default_config()
         return defaults.get("positionable_elements", [])

@@ -8,6 +8,16 @@ from abc import ABC, abstractmethod
 class BaseTemplate(ABC):
     name: str
 
+    @property
+    def description(self) -> str:
+        """返回模板描述，默认从 defaults.yaml 读取。"""
+        try:
+            defaults = self.get_default_config() or {}
+        except Exception:
+            return ""
+        value = defaults.get("description", "")
+        return value if isinstance(value, str) else str(value)
+
     @abstractmethod
     def get_default_config(self) -> dict:
         """返回模板默认配置（品牌/布局/颜色等）"""
@@ -22,6 +32,14 @@ class BaseTemplate(ABC):
     def get_scene_classes(self) -> list[str]:
         """返回 Manim 场景类名列表"""
         ...
+
+    def get_cover_manim_script(self) -> str | None:
+        """返回模板封面脚本相对路径；不支持封面时返回 None。"""
+        return None
+
+    def get_cover_scene_class(self) -> str | None:
+        """返回模板封面 Scene 类名；不支持封面时返回 None。"""
+        return None
 
     def get_positionable_elements(self) -> list[dict]:
         """

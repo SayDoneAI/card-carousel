@@ -24,6 +24,12 @@ class SketchCardTemplate(BaseTemplate):
     def get_scene_classes(self) -> list[str]:
         return ["Scene01_Cards"]
 
+    def get_cover_manim_script(self) -> str | None:
+        return "templates/sketch_card/cover.py"
+
+    def get_cover_scene_class(self) -> str | None:
+        return "SketchCardCover"
+
     def get_positionable_elements(self) -> list[dict]:
         config = self.get_default_config()
         return config.get("positionable_elements", [])

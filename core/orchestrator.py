@@ -53,6 +53,25 @@ def _compute_tts_fingerprint(cfg):
     return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
 
+def _compute_cover_fingerprint(cfg):
+    """计算封面渲染输入指纹，用于判断是否需要重新渲染。"""
+    layout = cfg.get("layout", {})
+    payload = {
+        "template": cfg.get("template"),
+        "title": cfg.get("title"),
+        "cover": cfg.get("cover", {}),
+        "brand": cfg.get("brand", {}),
+        "canvas": cfg.get("canvas", {}),
+        "layout": {
+            "font": layout.get("font"),
+            "background": layout.get("background"),
+            "colors": layout.get("colors"),
+        },
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()
+
+
 def _split_by_silences(audio_path: str, sentences: list, total: float) -> list:
     """用 ffmpeg silencedetect 拆分每句时长，失败时按字数比例回退。
 
@@ -513,21 +532,24 @@ def step_voice(cfg):
         audio_path = os.path.join(audio_dir, f"{name}.mp3")
         output_path = os.path.join(voiced_dir, f"{name}.mp4")
 
-        if os.path.exists(output_path):
-            # 如果渲染视频比 voiced 视频更新，说明内容已变化，需要重新合并
-            render_mtime = os.path.getmtime(video_path) if os.path.exists(video_path) else 0
-            voiced_mtime = os.path.getmtime(output_path)
-            if render_mtime <= voiced_mtime:
-                print(f"\n  [{name}] 已存在，跳过")
-                continue
-            print(f"\n  [{name}] 渲染视频已更新，重新合并配音")
-
         if not os.path.exists(video_path):
             print(f"\n  [{name}] 错误: 视频不存在 ({video_path})")
             sys.exit(1)
         if not os.path.exists(audio_path):
             print(f"\n  [{name}] 错误: 音频不存在 ({audio_path})")
             sys.exit(1)
+
+        if os.path.exists(output_path):
+            # 输入视频或音频任一更新，都需要重新合并
+            newest_input_mtime = max(
+                os.path.getmtime(video_path),
+                os.path.getmtime(audio_path),
+            )
+            voiced_mtime = os.path.getmtime(output_path)
+            if newest_input_mtime <= voiced_mtime:
+                print(f"\n  [{name}] 已存在，跳过")
+                continue
+            print(f"\n  [{name}] 输入资源已更新，重新合并配音")
 
         video_dur = get_duration(video_path)
         audio_dur = get_duration(audio_path)
@@ -568,6 +590,8 @@ def step_voice(cfg):
 
 def step_cover(cfg):
     """生成封面：插画 → TTS → Manim 渲染 → 合并配音（含开场音效）"""
+    from templates import get_template
+
     cover_cfg = cfg.get("cover", {})
     if not cover_cfg:
         return
@@ -575,7 +599,10 @@ def step_cover(cfg):
     project_dir = cfg["_project_dir"]
     audio_dir = cfg["_audio_dir"]
     voiced_dir = cfg["_voiced_dir"]
+    os.makedirs(cfg["_cover_dir"], exist_ok=True)
     os.makedirs(voiced_dir, exist_ok=True)
+    cover_illus_path = os.path.join(cfg["_cover_dir"], "cover_illustration.jpg")
+    cover_fingerprint_file = os.path.join(cfg["_cover_dir"], "_cover_fingerprint.md5")
 
     print("=" * 50)
     print("Step: 封面制作")
@@ -592,8 +619,6 @@ def step_cover(cfg):
         # 每个封面 prompt 独立缓存，避免多视频并发时互相覆盖
         cover_cache_path = os.path.join(project_dir, "assets", f"cover_{prompt_hash[:12]}.jpg")
         # 封面插画放在 per-config 目录，供 Manim 通过 CARD_CAROUSEL_COVER_DIR 读取
-        os.makedirs(cfg["_cover_dir"], exist_ok=True)
-        cover_illus_path = os.path.join(cfg["_cover_dir"], "cover_illustration.jpg")
         illus_stale = not os.path.exists(cover_cache_path)
         if illus_stale:
             print("  封面插画: 生成中...")
@@ -676,21 +701,36 @@ def step_cover(cfg):
     elif sfx_path and os.path.exists(sfx_path) and not os.path.exists(cover_audio):
         shutil.copy2(sfx_path, cover_audio)
 
-    # 3. 渲染封面 Manim 场景（按模板选择 cover.py）
+    # 3. 渲染封面 Manim 场景（由模板声明 cover.py / Scene 类）
     template_name = cfg.get("template", "dark-card")
-    _cover_map = {
-        "sketch-card": ("sketch_card", "SketchCardCover"),
-        "dark-card":   ("dark_card",   "DarkCardCover"),
-    }
-    _tmpl_dir, _scene_cls = _cover_map.get(template_name, ("dark_card", "DarkCardCover"))
-    cover_script = os.path.join(project_dir, "templates", _tmpl_dir, "cover.py")
-    cover_render_dir = os.path.join(cfg["_manim_media_dir"], "videos", "cover", "1080p60")
-    cover_render_out = os.path.join(cover_render_dir, f"{_scene_cls}.mp4")
+    tmpl = get_template(template_name)
+    cover_script_rel = tmpl.get_cover_manim_script()
+    cover_scene_cls = tmpl.get_cover_scene_class()
+    if not cover_script_rel or not cover_scene_cls:
+        print(f"  错误: 模板 {template_name!r} 未声明封面场景，无法处理 cover 配置")
+        sys.exit(1)
 
-    # 封面渲染缓存：若插画文件比渲染结果更新，则重新渲染
+    cover_script = os.path.join(project_dir, cover_script_rel)
+    if not os.path.exists(cover_script):
+        print(f"  错误: 封面脚本不存在 ({cover_script})")
+        sys.exit(1)
+
+    cover_render_dir = os.path.join(cfg["_manim_media_dir"], "videos", "cover", "1080p60")
+    cover_render_out = os.path.join(cover_render_dir, f"{cover_scene_cls}.mp4")
+    current_cover_fingerprint = _compute_cover_fingerprint(cfg)
+    cached_cover_fingerprint = None
+    if os.path.exists(cover_fingerprint_file):
+        with open(cover_fingerprint_file, encoding="utf-8") as f:
+            cached_cover_fingerprint = f.read().strip()
+
+    # 封面渲染缓存：配置或插画输入变化时重新渲染
     cover_illus_mtime = os.path.getmtime(cover_illus_path) if os.path.exists(cover_illus_path) else 0
     render_mtime = os.path.getmtime(cover_render_out) if os.path.exists(cover_render_out) else 0
-    cover_render_stale = not os.path.exists(cover_render_out) or cover_illus_mtime > render_mtime
+    cover_render_stale = (
+        not os.path.exists(cover_render_out)
+        or cover_illus_mtime > render_mtime
+        or cached_cover_fingerprint != current_cover_fingerprint
+    )
     if cover_render_stale:
         print("  封面渲染: 运行 Manim...")
         env = os.environ.copy()
@@ -699,12 +739,14 @@ def step_cover(cfg):
         env["CARD_CAROUSEL_AUDIO_DIR"] = audio_dir
         env["CARD_CAROUSEL_ILLUSTRATIONS_DIR"] = cfg["_illustrations_dir"]
         env["CARD_CAROUSEL_COVER_DIR"] = cfg["_cover_dir"]
-        cmd = ["manim", "-qh", "--media_dir", cfg["_manim_media_dir"], cover_script, _scene_cls]
+        cmd = ["manim", "-qh", "--media_dir", cfg["_manim_media_dir"], cover_script, cover_scene_cls]
         r = subprocess.run(cmd, cwd=project_dir, env=env, capture_output=True)
         if r.returncode != 0:
             print("  封面渲染失败!")
             print(r.stderr.decode(errors="replace")[-800:])
             return
+        with open(cover_fingerprint_file, "w", encoding="utf-8") as f:
+            f.write(current_cover_fingerprint)
         print(f"    -> {cover_render_out}")
     else:
         print("  封面渲染: 已存在，跳过")
@@ -716,9 +758,11 @@ def step_cover(cfg):
     # 4. 合并 TTS 音频到封面视频
     cover_voiced = os.path.join(voiced_dir, "cover_voiced.mp4")
     render_mtime = os.path.getmtime(cover_render_out)
+    cover_audio_mtime = os.path.getmtime(cover_audio) if os.path.exists(cover_audio) else 0
+    newest_cover_input_mtime = max(render_mtime, cover_audio_mtime)
     voiced_mtime = os.path.getmtime(cover_voiced) if os.path.exists(cover_voiced) else 0
 
-    if not os.path.exists(cover_voiced) or render_mtime > voiced_mtime:
+    if not os.path.exists(cover_voiced) or newest_cover_input_mtime > voiced_mtime:
         print("  封面配音: 合并中...")
         if os.path.exists(cover_audio):
             video_dur = get_duration(cover_render_out)

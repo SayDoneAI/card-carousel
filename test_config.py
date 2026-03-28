@@ -17,11 +17,11 @@ def _write_config(tmpdir: str, yaml_content: str) -> str:
     return cfg_path
 
 
-class TestMaxCharsPerCardEnforcement:
-    """测试 max_chars_per_card 与 wrap_chars 不一致时被强制修正"""
+class TestMaxCharsPerCardConfig:
+    """测试 max_chars_per_card 与 wrap_chars 的当前配置规则"""
 
-    def test_inconsistent_max_chars_corrected(self, tmp_path, capsys):
-        """wrap_chars=20, max_chars_per_card=30（应为40）→ 加载后强制修正为 40"""
+    def test_custom_max_chars_preserved(self, tmp_path, capsys):
+        """wrap_chars=20, max_chars_per_card=30 → 保留模板/用户自定义值，不打印警告"""
         yaml_content = textwrap.dedent("""\
             title: "测试"
             manim_script: "scene.py"
@@ -38,11 +38,9 @@ class TestMaxCharsPerCardEnforcement:
 
         cfg = load_config(cfg_path)
 
-        assert cfg["layout"]["max_chars_per_card"] == 40
+        assert cfg["layout"]["max_chars_per_card"] == 30
         out = capsys.readouterr().out
-        assert "警告" in out
-        assert "max_chars_per_card" in out
-        assert "强制修正" in out
+        assert "警告" not in out
 
     def test_consistent_max_chars_unchanged(self, tmp_path, capsys):
         """wrap_chars=20, max_chars_per_card=40（正确）→ 保持不变，无警告"""
@@ -85,8 +83,8 @@ class TestMaxCharsPerCardEnforcement:
 
         assert cfg["layout"]["max_chars_per_card"] == 30
 
-    def test_inconsistent_value_after_correction_equals_expected(self, tmp_path):
-        """强制修正后值严格等于 wrap_chars*2，与传入值无关"""
+    def test_large_custom_max_chars_preserved(self, tmp_path):
+        """显式配置的 max_chars_per_card 应按输入保留，不再强制回退到 wrap_chars*2"""
         yaml_content = textwrap.dedent("""\
             title: "测试"
             manim_script: "scene.py"
@@ -103,7 +101,7 @@ class TestMaxCharsPerCardEnforcement:
 
         cfg = load_config(cfg_path)
 
-        assert cfg["layout"]["max_chars_per_card"] == 20  # 10 * 2
+        assert cfg["layout"]["max_chars_per_card"] == 99
 
 
 class TestTemplateManifestBounds:
@@ -146,3 +144,22 @@ class TestTemplateManifestBounds:
                 f"模板 {template_name!r} 元素 {elem_id!r}: "
                 f"default_y={default_y} 超出范围 [{min_y}, {max_y}]"
             )
+
+
+class TestTemplateMetadata:
+    """验证模板元数据完整性"""
+
+    def test_template_descriptions_available(self):
+        from templates import get_all_templates
+
+        templates = get_all_templates()
+        for template_name, tmpl in templates.items():
+            assert tmpl.description, f"模板 {template_name!r} 缺少 description"
+
+    def test_cover_templates_declare_cover_metadata(self):
+        from templates import get_template
+
+        for template_name in ("dark-card", "sketch-card"):
+            tmpl = get_template(template_name)
+            assert tmpl.get_cover_manim_script()
+            assert tmpl.get_cover_scene_class()
