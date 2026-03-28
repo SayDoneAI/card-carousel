@@ -11,9 +11,9 @@ illustrations:
     - kling-v3
     - doubao-seedream-5-0-260128
   remove_bg: false
-  use_character: true
+  use_character: false
   use_reference_image: false
-  style_prompt: "手绘笔记风格信息图，白色背景上用黑色线条绘制。用图标、箭头、流程图、简笔画等视觉符号表达概念，尽量少写文字，多用图形符号。黑色为主要线条，红色强调重点。构图清晰有逻辑，填满画布。纯白背景高对比度，不使用渐变阴影和3D效果。极简手绘信息图表风格。{character}"
+  style_prompt: "一个圆头黑色火柴人{keyword}，白色背景，铅笔素描风格，只有一个人物和一两件道具，在画面中加入一个简短的中文手写标注词语放在标牌或纸条上来概括场景含义"
 
 canvas:
   pixel_width: 1080
@@ -27,7 +27,7 @@ layout:
   illustration_size: 6.3
   background_image: ""
   font_size: 32
-  author_avatar: "assets/huangfu.png"
+  author_avatar: "assets/avatar.png"
   background:
     type: "gradient"
     direction: "vertical"

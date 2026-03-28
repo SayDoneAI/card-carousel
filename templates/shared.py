@@ -41,8 +41,11 @@ TIMING_FILE = os.environ.get(
     "CARD_CAROUSEL_TIMING_FILE", os.path.join(_DEFAULT_MEDIA, "_timing.json")
 )
 _PREVIEW_ASSETS_DIR = os.environ.get("CARD_CAROUSEL_PREVIEW_ASSETS_DIR")
+_ILLUS_DIR_ENV = os.environ.get("CARD_CAROUSEL_ILLUSTRATIONS_DIR")
 if _PREVIEW_ASSETS_DIR and os.path.isdir(_PREVIEW_ASSETS_DIR):
     ASSETS_DIR = _PREVIEW_ASSETS_DIR
+elif _ILLUS_DIR_ENV:
+    ASSETS_DIR = _ILLUS_DIR_ENV
 else:
     ASSETS_DIR = os.path.join(_DIR, "assets", "illustrations")
 
@@ -452,6 +455,55 @@ class GenericCardScene(Scene):
                 bg_mob.move_to(ORIGIN)
                 self.add(bg_mob)
 
+        # ── 白色卡片模式 ──
+        layout_cfg = cfg.get("layout", {})
+        card_cfg = layout_cfg.get("card", {})
+        self._card_mode = bool(card_cfg.get("enabled", False))
+        self._card_rect = None
+        self._card_top = None    # 卡片顶部 Y（Manim 坐标）
+        self._card_bottom = None # 卡片底部 Y
+
+        if self._card_mode:
+            fw = config.frame_width
+            fh = config.frame_height
+            card_w_pct = card_cfg.get("width_percent", 92) / 100
+            card_h_pct = card_cfg.get("height_percent", 72) / 100
+            card_y_pct = card_cfg.get("center_y_percent", 45) / 100
+            card_w = fw * card_w_pct
+            card_h = fh * card_h_pct
+            card_y = fh / 2 - card_y_pct * fh  # percent from top → manim y
+
+            card_rect = RoundedRectangle(
+                corner_radius=card_cfg.get("corner_radius", 0.15),
+                width=card_w,
+                height=card_h,
+                fill_color=card_cfg.get("fill_color", "#FFFFFF"),
+                fill_opacity=1,
+                stroke_width=0,
+            )
+            card_rect.move_to([0, card_y, 0])
+            self.add(card_rect)
+            self._card_rect = card_rect
+            self._card_top = card_y + card_h / 2
+            self._card_bottom = card_y - card_h / 2
+
+            # 分隔线
+            line_color = card_cfg.get("line_color", "#DDDDDD")
+            line_stroke = card_cfg.get("line_stroke", 1.5)
+            top_line_pct = card_cfg.get("top_line_y_percent", 18) / 100
+            bot_line_pct = card_cfg.get("bottom_line_y_percent", 78) / 100
+            top_line_y = fh / 2 - top_line_pct * fh
+            bot_line_y = fh / 2 - bot_line_pct * fh
+
+            for ly in [top_line_y, bot_line_y]:
+                line = Line(
+                    start=[-card_w / 2, ly, 0],
+                    end=[card_w / 2, ly, 0],
+                    color=line_color,
+                    stroke_width=line_stroke,
+                )
+                self.add(line)
+
         # ── 声明式元素 ──
         elements = cfg.get("positionable_elements", [])
 
@@ -756,11 +808,13 @@ class GenericCardScene(Scene):
         if not text_content:
             return None
 
-        # 颜色：取第一个 color_field 对应的颜色
+        # 颜色：优先级 color_override（元素级直接指定）> color_fields（全局 palette key）> text
         color_fields = elem.get("color_fields", [])
         text_color = colors.get("text", "#000000")
         if color_fields:
             text_color = colors.get(color_fields[0]["key"], text_color)
+        if elem.get("color_override"):
+            text_color = elem["color_override"]
 
         fs = elem.get("font_size_override", _get_font_size(cfg))
         weight_str = elem.get("weight", "").upper()
@@ -768,10 +822,11 @@ class GenericCardScene(Scene):
         weight = weight_map.get(weight_str, NORMAL)
 
         line_spacing = elem.get("line_spacing", 1.2)
+        effective_font = elem.get("font_override", font)
 
         mob = Text(
             text_content,
-            font=font,
+            font=effective_font,
             font_size=fs,
             color=text_color,
             weight=weight,
@@ -967,7 +1022,7 @@ class GenericCardScene(Scene):
             ]
 
         max_chars = cfg.get("layout", {}).get("max_chars_per_card", 18)
-        sentences, keywords = split_long_sentences(raw_sentences, keywords, max_chars)
+        sentences, keywords, is_continuation = split_long_sentences(raw_sentences, keywords, max_chars)
 
         def _is_light_bg(hex_color):
             """判断背景色是否为亮色（亮度 > 128）"""
@@ -976,11 +1031,19 @@ class GenericCardScene(Scene):
             luminance = 0.299 * r + 0.587 * g + 0.114 * b
             return luminance > 128
 
-        caption_color = "#000000" if _is_light_bg(colors.get("bg", "#000000")) else "#FFFFFF"
+        # 字幕颜色：字幕在卡片外（黑底区），始终用背景色推导
+        card_cfg = cfg.get("layout", {}).get("card", {})
+        _color_ref = colors.get("bg", "#FFFFFF")
+        caption_color = "#000000" if _is_light_bg(_color_ref) else "#FFFFFF"
 
         # 查找 illustration / caption 元素声明（仅 visible 的）
         illus_elem = None
         caption_elem = None
+        for elem in elements:
+            if not elem.get("visible", True):
+                continue
+            if elem.get("type") == "caption" and elem.get("color_override"):
+                caption_color = elem["color_override"]
         for elem in elements:
             if not elem.get("visible", True):
                 continue
@@ -1048,7 +1111,7 @@ class GenericCardScene(Scene):
 
             # ── 大号文字（字幕/主内容） ──
             caption_text = Text(
-                wrap_chinese(sentence, wrap_chars),
+                wrap_chinese(sentence.rstrip("。"), wrap_chars),
                 font=font,
                 font_size=font_size,
                 color=caption_color,
@@ -1155,11 +1218,13 @@ class GenericCardScene(Scene):
                         self.remove(prev_illus)
                     self.add(illus)
 
-                tl.sync(self, anim_time)
+                if not is_continuation[i]:
+                    tl.sync(self, anim_time)
                 prev_illus = illus
                 prev_kw = kw
             else:
-                tl.sync(self, anim_time)
+                if not is_continuation[i]:
+                    tl.sync(self, anim_time)
 
             prev_caption = caption_text
 

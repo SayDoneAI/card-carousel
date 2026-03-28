@@ -1,0 +1,105 @@
+template: portrait-notebook
+title: "我养了AI龙虾，然后想通了一件事"
+
+brand:
+  topic: "养龙虾之前，先想清楚这件事"
+  subtitle: "工作流跑通，自动化才有意义"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      一个奥地利工程师，周末一个人做了个项目
+      几天后，GitHub上10万颗星
+      OpenAI直接把他挖走了
+      这就是OpenClaw，外号叫小龙虾
+      朋友圈炸了，群里炸了，见面都在问：你养了吗
+      我也装了
+      然后我想通了一件事
+      先说这只龙虾，真正动了什么
+      历次技术革命，打的都是基础操作层
+      工厂机械化打掉流水线工人，电商崛起打掉线下导购
+      但有一层人，一直活得很好
+      项目经理、执行总监、部门主管
+      他们的工作：理解上级，拆任务，协调资源，推进，汇报
+      Agent出来之后，这个逻辑不成立了
+      Agent的工作流，和他们一字不差
+      老板一句话，Agent拆成10个任务并行跑，比5个人还快，还不请假
+      第二刀，打的是信息差生意
+      中介、猎头、广告代理、咨询，任何靠我知道你不知道赚钱的，全在射程里
+    illustration_keywords:
+      - lone coder night
+      - null
+      - null
+      - crab robot
+      - social media frenzy
+      - null
+      - null
+      - null
+      - industrial revolution timeline
+      - null
+      - middle management office
+      - null
+      - workflow arrows
+      - AI robot replacing human
+      - null
+      - null
+      - information gap bridge
+      - null
+
+  - name: Scene02_Cards
+    narration: |
+      但我装完之后，看到了另一面
+      大多数人装龙虾，不是因为有问题要解决
+      是因为周围人在装，怕落伍，怕错过
+      吭哧吭哧折腾几天，发个朋友圈，然后没有然后了
+      这哪是养AI，是AI在养你——养你的焦虑
+      装龙虾值不值，取决于一个前置条件
+      你的工作流，跑通了吗
+      如果你连要自动化什么都不知道，Agent帮不了你
+      我现在主要用Claude，效率提升超过10倍
+      做教练纪要，以前手搓要两三个小时
+      现在三十分钟搞定，还比以前做的好看
+      不是工具多厉害，是我清楚每一步要做什么
+      你现在的工作，AI含量是多少
+      不是装了几个工具，而是AI在跑、你在审的比例有多高
+      AI是个人杠杆，效用等于你自己的n次方
+      你大于1，AI把你放大；你小于等于1，AI把你缩小
+      先把工作流跑通，自动化才有意义
+      本周四下午，我有一个创业下午茶，就聊这件事——你的AI含量是多少
+    illustration_keywords:
+      - mirror reflection two sides
+      - crowd following trend
+      - null
+      - phone social media post
+      - anxiety spiral
+      - prerequisite checklist
+      - workflow map
+      - null
+      - efficiency multiplier 10x
+      - coaching notes handwritten
+      - null
+      - clear steps forward
+      - AI percentage gauge
+      - null
+      - lever amplifier
+      - null
+      - workflow blueprint
+      - afternoon tea small group

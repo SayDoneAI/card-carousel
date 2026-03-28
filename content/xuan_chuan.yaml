@@ -1,0 +1,135 @@
+template: sketch-card
+title: "流量救不了你的产品"
+
+brand:
+  topic: "流量救不了你的产品"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "成长分享，伴你前行"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 1.5
+  fade_out: 3
+
+cover:
+  narration: "流量救不了你的产品"
+  illustration_prompt: "Hand-drawn sketch style stick figure holding a megaphone in one hand and a product box in the other, red accent color, bold black ink lines, white background, minimal flat 2D style, no English text"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      我最近发现一个现象。
+      越焦虑的创业者，越喜欢做社媒。
+      不是因为产品已经好了。
+      是做社媒让他们感觉自己在做事。
+      发条视频，涨了粉，有数字，有反馈。
+      比打磨产品的漫长，舒服多了。
+      有个做知识付费的创始人找我。
+      小红书涨粉很快，但课程卖不动。
+      她第一反应，是不是投放不够？
+      内容方向不对？漏斗有问题？
+      我问她上次收集学员反馈是什么时候。
+      她愣了一下。
+      课程上线三个月了。
+      她几乎没认真问过学员。
+      这个课，真的有用吗？
+      有本书说过一句话。
+      宣传不能替代产品。
+      流量是个放大器。
+      产品好，它放大好的部分。
+      产品有问题，它放大问题。
+      拼命做社媒，但产品没打磨好。
+      你是在让更多人更快发现它不行。
+      为什么这么多人搞反顺序？
+      不是因为不懂道理。
+      是因为打磨产品太难了。
+      打磨产品要收集真实反馈。
+      发现自己做的东西有很多问题。
+      然后一遍遍改。
+      这个过程是痛苦的，没有进度感。
+      做社媒不一样。
+      发一条内容，粉丝涨了100。
+      有一种在进步的感觉。
+      但那个感觉，跟产品卖钱没关系。
+      我跟那个创始人说。
+      先停掉一个平台。
+      把时间花在联系20个老学员上。
+      不是推新课，就是问学员反馈。
+      学完之后，你改变了什么？
+      她做了。
+      一周后她发消息给我。
+      才发现有几个核心问题没讲清楚。
+      她以为大家都明白了。
+      后来她改了课程。
+      同样的流量，转化涨了近一倍。
+      流量永远都可以做。
+      你现在清楚产品解决了什么问题吗？
+      关注我，陪你打怪升级。
+    illustration_keywords:
+      - pattern discovery        # 我最近发现一个现象
+      - null
+      - null
+      - busy looking productive  # 做社媒感觉自己在做事
+      - null
+      - null
+      - knowledge creator trap   # 做知识付费的创始人
+      - null
+      - null
+      - null
+      - question mirror          # 我问她
+      - null
+      - null
+      - null
+      - null
+      - book and quote           # 有本书说过一句话
+      - null
+      - traffic amplifier        # 流量是个放大器
+      - null
+      - null
+      - null
+      - null
+      - wrong order confused     # 为什么搞反顺序
+      - null
+      - null
+      - painful feedback loop    # 收集真实反馈
+      - null
+      - null
+      - null
+      - social media dopamine    # 做社媒不一样
+      - null
+      - null
+      - null
+      - coaching conversation    # 我跟那个创始人说
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - conversion doubles       # 转化涨了近一倍
+      - null
+      - null
+      - null

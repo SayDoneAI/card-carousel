@@ -42,30 +42,38 @@ def split_long_sentences(sentences, keywords, max_chars=18):
         max_chars: 每张卡片最多字数（默认 18 = 2行 × 9字/行）
 
     Returns:
-        (拆分后的句子列表, 扩展后的关键词列表)
+        (拆分后的句子列表, 扩展后的关键词列表, 是否为续接卡片列表)
+        is_continuation[i] == True 表示该卡片是某句话拆分的后半部分，
+        渲染时不应推进 TTS 时间线索引。
     """
     if max_chars <= 0:
         raise ValueError(f"max_chars 必须大于 0，当前值: {max_chars}")
 
     split_sentences = []
     expanded_keywords = []
+    is_continuation = []
 
     for i, sent in enumerate(sentences):
         kw = keywords[i] if i < len(keywords) else None
         if len(sent) <= max_chars:
             split_sentences.append(sent)
             expanded_keywords.append(kw)
+            is_continuation.append(False)
         else:
             # 按 max_chars 切分
+            first = True
             while len(sent) > max_chars:
                 split_sentences.append(sent[:max_chars])
                 expanded_keywords.append(kw)  # 复用同一关键词
+                is_continuation.append(not first)
+                first = False
                 sent = sent[max_chars:]
             if sent:
                 split_sentences.append(sent)
                 expanded_keywords.append(kw)
+                is_continuation.append(True)  # 续接片段
 
-    return split_sentences, expanded_keywords
+    return split_sentences, expanded_keywords, is_continuation
 
 
 def wrap_chinese(text, max_chars=9):

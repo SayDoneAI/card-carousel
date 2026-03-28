@@ -1,0 +1,46 @@
+template: portrait-notebook
+title: "你是谁比你会什么更重要"
+
+brand:
+  topic: "把「做什么」当成护城河，是这个时代最危险的误判。"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
+  use_character: false
+  use_reference_image: false
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: PortraitNotebookScene
+    narration: |
+      AI出来之后，很多创业者开始拼命学工具。
+      ChatGPT、Kimi、豆包——每出一个新工具，就去试一试。
+      还有一些人开始焦虑：AI会不会替代我？我还能做什么？
+      这两种反应，我都理解。
+      但它们都指向了一个错误的方向——
+      把「做什么」当成了护城河。
+    illustration_keywords:
+      - 创业者盯着屏幕疯狂记笔记
+      - null
+      - 人站在镜子前镜中是机器人
+      - null
+      - 人站在一道矮墙前以为是城堡
+      - null

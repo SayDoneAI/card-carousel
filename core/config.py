@@ -261,11 +261,8 @@ def load_config(path: str) -> dict:
             )
 
         if max_chars_per_card != expected_max_chars:
-            print(
-                "警告: layout.max_chars_per_card="
-                f"{max_chars_per_card} 与 layout.wrap_chars*2={expected_max_chars} 不一致，已强制修正"
-            )
-            layout_cfg["max_chars_per_card"] = expected_max_chars
+            # 允许模板自定义多行（如3行=wrap_chars*3），不强制修正
+            pass
 
     # ── 路径安全校验 ──
     # manim_script 必须在项目目录内
@@ -278,10 +275,18 @@ def load_config(path: str) -> dict:
     # 这里必须与 Manim 的行为保持一致，否则 voice 步骤找不到渲染产物
     script_base = cfg["manim_script"].replace(".py", "").replace("/", os.sep)
     media_key = os.path.basename(script_base)
-    media_base = os.path.join(project_dir, "media", "videos", media_key)
+    # 用 config 文件名作 slug，让每个视频有独立的 Manim 工作目录，支持并行运行
+    config_slug = os.path.splitext(os.path.basename(config_path))[0]
+    # Manim with --media_dir X writes to: X/videos/{script_name}/{quality}/
+    manim_media_dir = os.path.join(project_dir, "media", config_slug)
+    media_base = os.path.join(manim_media_dir, "videos", media_key)
+    cfg["_manim_media_dir"] = manim_media_dir
     cfg["_media_base"] = media_base
     cfg["_audio_dir"] = os.path.join(media_base, "audio")
     cfg["_timing_file"] = os.path.join(media_base, "_timing.json")
+    # 每个视频独立的插画目录（场景插画 + 封面插画）
+    cfg["_illustrations_dir"] = os.path.join(manim_media_dir, "illustrations")
+    cfg["_cover_dir"] = manim_media_dir  # cover_illustration.jpg 存放于此
 
     # Manim 按 quality preset 的 pixel_height 命名渲染目录
     # 注意：shared.py 的 construct() 会在运行时覆盖 config.pixel_height，

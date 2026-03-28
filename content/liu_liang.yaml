@@ -1,0 +1,77 @@
+template: sketch-card
+title: "流量救不了你的产品"
+
+brand:
+  topic: "流量救不了你的产品"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "个人观点，无不良引导"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.1
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+cover:
+  narration: "流量救不了你的产品"
+  illustration_prompt: "Hand-drawn sketch style stick figure character standing confidently in front of a giant megaphone, red accent color, bold black ink lines, white background, minimal flat 2D style, no English text"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      我最近发现一个规律。
+      越焦虑的创业者，越喜欢做社媒。
+      不是因为产品好了。
+      而是做社媒让他们感觉自己在做事。
+      发条视频，回个评论，粉丝涨了。
+      有数字，有反馈，比打磨产品舒服多了。
+      有个做知识付费的创始人找我。
+      她的小红书涨粉很快。
+      但课程就是卖不动。
+      她第一反应：是不是投放不够？
+      内容方向不对？漏斗有问题？
+      我问她：上一次认真收集学员反馈，是什么时候？
+      她愣了一下。
+      课程上线三个月了。
+      她几乎没认真问过：这个课，有没有用？
+      这不是个例。
+      我经常看到这个模式。
+      社媒做得越来越好，但生意没有变好。
+      然后开始怀疑平台不行、赛道太卷。
+      但很少有人往回看一步。
+      我的产品，有没有真正解决问题？
+    illustration_keywords:
+      - pattern discovery
+      - null
+      - null
+      - busy looking productive
+      - null
+      - null
+      - null
+      - viral content empty wallet
+      - null
+      - null
+      - null
+      - question mirror
+      - null
+      - null
+      - null
+      - growing followers declining revenue
+      - null
+      - null
+      - null
+      - null
+      - looking inward product quality

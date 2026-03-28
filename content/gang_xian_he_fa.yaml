@@ -1,0 +1,116 @@
+template: sketch-card
+title: "买港险是否违规：三层铁证告诉你答案"
+
+cover:
+  narration: "买港险是否违规：三层铁证告诉你答案"
+  illustration_prompt: "clean infographic on white background, top area bold large Chinese text 买港险违法？ with red question mark, below three rows each with a green checkmark icon, row 1 text 国务院明确支持, row 2 text 20年零客户被罚, row 3 text 中国人寿自己在卖, bottom small text 三层铁证 67秒讲清楚, black ink lines, minimal flat 2D style, no English text"
+  cover_fullscreen: true
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+brand:
+  topic: "国务院支持、零处罚、中国人寿自己在卖"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines: [kling, doubao]
+  fallback_models: [kling-v3, doubao-seedream-5-0-260128]
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 1.5
+  fade_out: 3
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      买香港保险合法吗？
+      这个问题必须讲清楚。
+      我们拆成三个子问题。
+      第一个问题国务院怎么说。
+      国务院明确表态支持。
+      支持境内居民合法购买。
+      注意两个关键词。
+      国家态度不是禁止是规范。
+      不让做的是无牌照直接销售。
+      客户自己到香港签单。
+      完全合法合规。
+    illustration_keywords:
+      - "infographic title card with bold text 买港险违规吗 and three icons below labeled 政策 事实 逻辑 with dotted line connecting them"
+      - null
+      - null
+      - "infographic with government document icon at top, two large highlighted words 支持 and 合法 circled in red, below a divider line showing 国务院态度 equals 规范 not 禁止"
+      - null
+      - null
+      - null
+      - null
+      - "simple two-column comparison chart, left column red X header 违规 with text 内地无牌照销售, right column green checkmark header 合法 with text 本人赴港亲自签单, clean black lines on white"
+      - null
+      - null
+
+  - name: Scene02_Cards
+    narration: |
+      第二个问题有没有人被罚。
+      你听说过谁买港险被罚吗？
+      一个都没有。
+      二十多年没有任何客户被罚。
+      被罚的是谁？
+      是内地无牌照展业的中介。
+      是在内地签单的违规操作。
+      客户自己去香港签单。
+      从来没被罚过一单都没有。
+      这是二十多年的事实。
+    illustration_keywords:
+      - "timeline diagram showing 20 plus years from 2003 to 2026 as horizontal bar, large number 0 above it with label 客户被罚案例, stamp icon saying 零处罚记录"
+      - null
+      - null
+      - null
+      - "two-row table chart, row 1 red X with text 被罚对象 and details 无牌中介 内地违规签单, row 2 green checkmark with text 从未被罚 and details 客户本人赴港签单, clean infographic style"
+      - null
+      - null
+      - null
+      - null
+      - null
+
+  - name: Scene03_Cards
+    narration: |
+      第三个问题最有说服力。
+      你知道中国人寿吗？
+      内地最大的国有保险公司。
+      它在香港有一家子公司。
+      同一家公司两个收益。
+      内地给你两点五。
+      香港给你六点五。
+      为什么差这么多？
+      内地有投资限制和利差损包袱。
+      香港没有这些限制。
+      如果违法中国人寿自己怎么卖。
+      国务院支持没人被罚。
+      中国人寿自己都在香港卖。
+    illustration_keywords:
+      - "infographic showing company split diagram, center logo 中国人寿, left branch arrow to 内地 with large 2.5 percent in grey, right branch arrow to 香港海外 with large 6.5 percent in red bold, subtitle 同一家公司 同样的钱"
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - "bar chart style infographic with three horizontal bars labeled 股票投资上限12 percent and 利差损历史包袱 and 企业所得税25 percent, each bar has red fill, right side text 香港无以上限制 with green checkmark"
+      - null
+      - null
+      - "summary infographic with three stacked blocks, block 1 政策 with 国务院支持, block 2 事实 with 20年零处罚, block 3 逻辑 with 中国人寿自己在卖, all connected by arrow pointing to large conclusion text 合法合规"
+      - null
+      - null

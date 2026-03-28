@@ -1,0 +1,171 @@
+name: sketch-card
+description: "手绘素描卡片 — 全屏铅笔插画 + 顶部标题栏 + 底部白色字幕"
+
+illustrations:
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - doubao
+  fallback_models:
+    - doubao-seedream-5-0-260128
+  remove_bg: true
+  style_prompt: "Hand-drawn sketch illustration on pure white background, simple stick figure characters (棒人 style) with circular heads and minimal limbs, bold black ink lines with occasional red color accents, any text labels or annotations must be in Chinese characters only (no English text, no Latin letters), clean minimal 2D flat composition, no photorealistic textures, pure white background everywhere, no border or frame"
+
+canvas:
+  pixel_width: 1080
+  pixel_height: 1440
+
+animation:
+  illustration: "none"
+  caption: "replace"
+
+layout:
+  font: "PingFang SC"
+  wrap_chars: 18
+  max_chars_per_card: 36
+  pixel_height: 1440
+  illustration_size: 6.0
+  font_size: 52
+  background:
+    type: "solid"
+    color: "#FFFFFF"
+  colors:
+    bg: "#FFFFFF"
+    text: "#1A1A1A"
+    accent: "#E53935"
+    muted: "#888888"
+    bar_bg: "#1A1A1A"
+    bar_text: "#FFFFFF"
+
+brand_defaults:
+  logo_char: "赋"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "成长分享，伴你前行"
+  topic: "深度思考"
+
+positionable_elements:
+  - id: "top_bar"
+    type: "mask"
+    label: "顶部标题栏"
+    visible: true
+    fixed: true
+    color: "#F2F2F2"
+    opacity: 1.0
+    position: "top"
+    height_percent: 5
+
+  - id: "title_text"
+    type: "text"
+    label: "视频标题"
+    visible: true
+    default_x: 50.0
+    default_y: 2.5
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 10
+    step: 0.5
+    brand_field: { key: "topic", label: "标题文字" }
+    color_fields:
+      - { key: "text", label: "标题颜色" }
+    font_size_override: 22
+    weight: "bold"
+
+  - id: "illustration"
+    type: "illustration"
+    label: "插画"
+    visible: true
+    aspect_ratio: "4:3"
+    width_percent: 100
+    default_x: 50.0
+    default_y: 38.0
+    min_x: 0
+    max_x: 100
+    min_y: 8
+    max_y: 72
+    step: 1.0
+    extra_fields:
+      - type: "select"
+        key: "illustration.aspect_ratio"
+        label: "插画比例"
+        options:
+          - { value: "4:3", label: "4:3 横幅" }
+          - { value: "1:1", label: "1:1 方形" }
+          - { value: "3:4", label: "3:4 竖版" }
+      - type: "select"
+        key: "animation.illustration"
+        label: "切换动画"
+        options:
+          - { value: "none", label: "直接替换" }
+          - { value: "fade", label: "淡入淡出" }
+          - { value: "slide", label: "滑动切换" }
+
+  - id: "caption_line"
+    type: "mask"
+    label: "分隔线"
+    visible: true
+    fixed: true
+    color: "#1A1A1A"
+    opacity: 1.0
+    position: "bottom"
+    height_percent: 28.5
+
+  - id: "caption_bar"
+    type: "mask"
+    label: "字幕背景栏"
+    visible: true
+    fixed: true
+    color: "#FFFFFF"
+    opacity: 1.0
+    position: "bottom"
+    height_percent: 28
+
+  - id: "caption"
+    type: "caption"
+    label: "字幕"
+    visible: true
+    color_override: "#1A1A1A"
+    default_x: 50.0
+    default_y: 79.0
+    min_x: 0
+    max_x: 100
+    min_y: 72
+    max_y: 93
+    step: 0.5
+    extra_fields:
+      - type: "select"
+        key: "animation.caption"
+        label: "切换动画"
+        options:
+          - { value: "replace", label: "直接替换" }
+          - { value: "fade", label: "淡入淡出" }
+
+  - id: "author_name"
+    type: "text"
+    label: "口号"
+    visible: true
+    default_x: 50.0
+    default_y: 90.0
+    min_x: 0
+    max_x: 100
+    min_y: 72
+    max_y: 100
+    step: 0.5
+    brand_field: { key: "author", label: "口号文字" }
+    color_override: "#888888"
+    font_size_override: 20
+
+  - id: "tagline"
+    type: "text"
+    label: "免责声明"
+    visible: true
+    default_x: 50.0
+    default_y: 95.0
+    min_x: 0
+    max_x: 100
+    min_y: 72
+    max_y: 100
+    step: 0.5
+    brand_field: { key: "tagline", label: "免责声明" }
+    color_override: "#888888"
+    font_size_override: 18

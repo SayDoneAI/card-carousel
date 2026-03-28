@@ -1,0 +1,94 @@
+template: dark-card
+title: "AI会替代你吗？看你在判断力的哪一层"
+
+cover:
+  illustration_prompt: |
+    黑白铅笔素描，一个严肃的商务人士站在三叉路口，三条路分别通向不同方向，路标上写着顶层、中层、底层，远处有一个机器人站在中间岔路上，人物背影朝向读者，构图有纵深感，线条有张力，白色背景，漫画分镜风格，画面显眼位置有手写中文标注
+  narration: "AI会替代你吗？看你在判断力的哪一层"
+  opening_sfx: "/Users/huangfu/Downloads/综艺咚咚特效音.mp3"
+
+brand:
+  topic: "AI替代不了你的顶层和底层判断"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      你做了十几年
+      AI出来后，你开始怀疑
+      我的经验还值钱吗？
+      答案是：看你的判断力在哪一层
+      判断力分三层
+      顶层：战略判断
+      判断方向对不对，该不该做
+      需要视野、经验、对趋势的感知
+      AI暂时做不了
+      中层：执行判断
+      判断怎么做，怎么拆解，怎么优化
+      这是标准化的专业判断
+      有框架、有套路
+    illustration_keywords:
+      - experienced worker doubt
+      - null
+      - question mark value
+      - null
+      - three layers pyramid
+      - null
+      - strategic direction compass
+      - null
+      - null
+      - execution gears
+      - null
+      - null
+      - null
+
+  - name: Scene02_Cards
+    narration: |
+      AI最容易学会的，就是这一层
+      底层：一线判断
+      判断这个客户今天心情怎么样
+      这个员工靠不靠谱
+      需要现场感、人际敏感度
+      AI也做不了
+      AI替代不了顶层和底层
+      但可以替代中间层
+      为什么？
+      因为中间层的判断，最容易被标准化
+      有套路有框架有方法论的东西，AI学得最快
+      AI学会之后
+      比你做得更快、更稳定、更便宜
+    illustration_keywords:
+      - AI robot learning fast
+      - frontline worker
+      - null
+      - null
+      - human intuition emotion
+      - null
+      - AI vs human balance
+      - null
+      - null
+      - standardization conveyor belt
+      - null
+      - null
+      - robot outpacing human

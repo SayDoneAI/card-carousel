@@ -1,0 +1,99 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  黄金标准配置 — 经 6+ 次视频迭代验证的最佳参数              ║
+# ║                                                            ║
+# ║  使用方法：复制此文件，只需修改 3 处：                      ║
+# ║    1. title — 视频标题                                     ║
+# ║    2. brand.topic — 主题金句                                ║
+# ║    3. scenes — 旁白文案 + 插画关键词                        ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+template: dark-card
+
+title: "在此填写视频标题"
+
+# ── 封面配置（标配，不要删除）──────────────────────────
+# 封面插画自带文字信息（标题+要点），模板不再叠加红色标题
+# cover_fullscreen: true 让插画占满内容区，避免文字重叠
+cover:
+  narration: "在此填写封面朗读文案（通常与标题相同）"
+  illustration_prompt: "clean infographic on white background, top area bold large Chinese text {视频标题} with red question mark or exclamation, below 2-3 rows of key points with green checkmark icons, bottom small text with hook line, black ink lines, minimal flat 2D, no English text"
+  cover_fullscreen: true
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+# ── 品牌 ──────────────────────────────────────────────
+brand:
+  topic: "在此填写主题金句（强调色居中显示）"
+  # author 和 slogan 走模板默认值：@黄赋 / 关注我，陪你打怪升级
+
+# ── 语音 ──────────────────────────────────────────────
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2  # 1.2x 最佳语速（经多次迭代验证）
+
+# ── 插画 ──────────────────────────────────────────────
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines: [kling, doubao]
+  fallback_models: [kling-v3, doubao-seedream-5-0-260128]
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+  # style_prompt 由 dark-card 模板默认值提供：
+  # 黑白铅笔素描，漫画分镜风格，简短中文手写标注，无英文
+
+# ── 背景音乐 ──────────────────────────────────────────
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05       # BGM 5% — 不抢配音，营造氛围
+  voice_volume: 1.5  # 配音放大 1.5 倍
+  fade_out: 3        # 结尾 3 秒淡出
+
+# ── 输出 ──────────────────────────────────────────────
+output:
+  speed: 1.0
+
+# ── 场景（旁白 + 插画关键词）─────────────────────────
+# ⚠️ 旁白规则（违反会导致音画不同步）：
+#   1. 每句 ≤18 字 — 确保单行显示，不会覆盖插画
+#   2. 用句号/问号/感叹号结尾 — 不用逗号/冒号结尾
+#   3. 避免句内逗号 — 逗号会导致 TTS 停顿，破坏静音检测时长切分
+#   4. 一句 = 一卡片 = 一 TTS 片段 — 保证字幕音频严格同步
+#
+# ⚠️ 关键词规则：
+#   1. 关键词数量必须与句子数量完全一致（否则 pipeline 会报错）
+#   2. null = 复用上一张插画（无切换动画）
+#   3. 非 null = 生成新插画 + 滑动切换
+#   4. 建议每 3-4 句换一张图
+#   5. 内容转折或场景变化时用新关键词
+#
+# ⚠️ 插画风格（PPT 图解风格，不要概念图）：
+#   - 每张图都是信息图/图表/流程图，像 PPT 讲解一样拆解逻辑
+#   - 用对比表、时间线、柱状图、分支图等具体图表类型
+#   - 数据说话：突出具体数字和对比
+#   - 步骤类内容用同一底图逐步展开（img2img, strength=0.4）
+#   - 关键词描述图表结构而非抽象概念
+#   - 好例子："two-column comparison chart, left X 违规 right checkmark 合法"
+#   - 坏例子："missing puzzle piece"（太抽象，无信息量）
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      第一句话不超过十八字。
+      第二句承接第一句。
+      第三句转折新观点。
+      第四句总结收尾。
+    illustration_keywords:
+      - opening scene concept
+      - null
+      - turning point visual
+      - null
+
+# 如果文案超过 15 句，拆分为多个场景：
+#  - name: Scene02_Cards
+#    narration: |
+#      续接的内容。
+#    illustration_keywords:
+#      - next concept

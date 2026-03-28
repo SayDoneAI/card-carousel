@@ -1,0 +1,123 @@
+template: sketch-card
+title: "老板越忙，决策越差"
+
+brand:
+  topic: "老板越忙，决策越差"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "成长分享，伴你前行"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+  style_prompt: "Theme: {keyword}. Style: hand-drawn infographic diagram with stick figures (circle heads, line bodies), bold black ink lines, pure solid white background (NOT paper texture, NOT notebook, NOT any surface — just flat white #FFFFFF), red accent color for emphasis. Include Chinese text labels and short annotations where helpful — NO English text anywhere. Use arrows, numbered steps, comparison panels, callouts to explain the concept visually. Minimal flat 2D."
+
+output:
+  speed: 1.0
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 1.5
+  fade_out: 3
+
+cover:
+  narration: "老板越忙，决策越差"
+  illustration_prompt: "Hand-drawn stick figure (matchstick man) boss with simple circle head and line body, surrounded by decision arrows pulling in all directions, brain cracking and draining, red accent color showing stress and depletion, bold black ink lines, white background, minimal flat 2D stick figure style, no English text"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      很多老板跟我说，最累的不是某件事。
+      而是停不下来。
+      但仔细想想，真正拖垮你的不是事情多。
+      而是每件事都要你来判断。
+      战略方向要你判断，资源怎么分要你判断。
+      执行现场出了问题还是要你来拍板。
+      三种决策同时压着，认知是会耗尽的。
+      这背后有一个恶性循环。
+      越忙，没时间更新认知，判断力老化。
+      决策质量下降，团队返工，更忙。
+      更残酷的是。
+      培养一个能独挡一面的中层，少说要三年。
+      但业务今天就要结果，你只能自己上。
+      很多老板想过解法。
+      再招一个能人，上几个AI工具。
+      但招人要磨合，工具上了流程没变。
+      关键节点还是在等你拍板。
+      老板缺的不是工具。
+      是一套能反复用的判断标准。
+      机制不建，贴多少膏药都是治标。
+      所以我建议的方向不是用AI替代你。
+      而是先让AI学你的决策逻辑。
+      承担60到70分的基础初判。
+      你只做最后的终判。
+      落地分四步。
+      第一，采集。每天语音记录三个判断过程。
+      为什么这么判，看了哪些信号，排除了什么。
+      第二，结构化。
+      整理成情境、信号、判断、动作、结果。
+      第三，训练。
+      让AI按同样框架先出初判，再与你的结论对照。
+      第四，校正。
+      每周复盘错判，提炼红线规则和优先级原则。
+      越用越准，越准越省力。
+      认真做三个月，你会感受到一个明显变化。
+      释放30到40%的决策精力。
+      不是时间变多了。
+      是你真正能用在高质量思考上的精力比例上来了。
+      你现在最该亲自做的，是多做一个决策。
+      还是先搭一套，让你少做80%低质量决策的系统？
+      请在评论区说说你的想法。
+    illustration_keywords:
+      - stick figure boss exhausted cannot stop   # 很多老板跟我说，最累的不是某件事
+      - stickman running endlessly nonstop loop   # 而是停不下来
+      - stickman overwhelmed pulled by too many things  # 真正拖垮你的不是事情多
+      - decision burden heavy                     # 而是每件事都要你来判断
+      - three decisions strategy resources ops    # 战略方向/资源/执行现场
+      - boss always final decision maker          # 关键节点还是要你拍板
+      - cognitive drain three decisions           # 三种决策同时压着，认知耗尽
+      - vicious cycle starts here                 # 这背后有一个恶性循环
+      - busy no time to learn judgment decays     # 越忙没时间更新认知
+      - decision quality drops team rework        # 决策质量下降，团队返工
+      - cruel reality no shortcut                 # 更残酷的是
+      - three years to train middle manager       # 培养中层少说要三年
+      - business needs results today              # 业务今天就要结果
+      - wrong solutions tried                     # 很多老板想过解法
+      - hiring and tools fail                     # 再招能人上AI工具
+      - hiring needs time tools change nothing    # 但招人要磨合，工具上了流程没变
+      - boss still bottleneck approval            # 关键节点还是在等你拍板
+      - judgment standard missing                 # 老板缺的不是工具
+      - repeatable decision framework needed      # 是一套能反复用的判断标准
+      - bandage treatment no system               # 机制不建贴多少膏药都是治标
+      - AI as collaborator not replacement        # 不是用AI替代你
+      - AI learns your decision logic             # 先让AI学你的决策逻辑
+      - AI handles initial judgment 60 percent    # 承担60到70分的基础初判
+      - boss makes final call only                # 你只做最后的终判
+      - four steps implementation plan            # 落地分四步
+      - step one collect voice record decisions   # 第一采集，语音记录判断过程
+      - record signals reasoning exclusions       # 为什么这么判，看了哪些信号
+      - step two structure framework              # 第二，结构化
+      - situation signal judgment action result   # 整理成情境信号判断动作结果
+      - step three AI training comparison         # 第三，训练
+      - AI initial judgment vs boss conclusion    # AI先出初判再与你结论对照
+      - step four calibrate rules weekly          # 第四，校正
+      - weekly review refine red lines priorities # 每周复盘错判提炼红线规则
+      - more accurate less effort over time       # 越用越准越准越省力
+      - three months visible change               # 认真做三个月明显变化
+      - decision energy freed 30 to 40 percent    # 释放30到40%决策精力
+      - not more time but better quality thinking # 不是时间变多了
+      - high quality thinking proportion rises    # 真正能用在高质量思考上的精力
+      - choice more decisions or build system     # 是多做一个决策还是先搭系统
+      - question to audience comment below        # 请在评论区说说你的想法

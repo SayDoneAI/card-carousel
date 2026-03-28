@@ -33,3 +33,5 @@ def get_all_templates() -> dict[str, BaseTemplate]:
 # ── 导入内置模板（触发 @register 自注册）──
 import templates.minimal_insight  # noqa: E402, F401
 import templates.portrait_notebook  # noqa: E402, F401
+import templates.dark_card  # noqa: E402, F401
+import templates.sketch_card  # noqa: E402, F401

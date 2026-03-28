@@ -1,0 +1,118 @@
+template: sketch-card
+title: "公司离不开你，才是最大的问题"
+
+brand:
+  topic: "公司离不开你，才是最大的问题"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "成长分享，伴你前行"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+  style_prompt: "Theme: {keyword}. Style: hand-drawn infographic diagram with stick figures (circle heads, line bodies), bold black ink lines, pure solid white background (NOT paper texture, NOT notebook, NOT any surface — just flat white #FFFFFF), red accent color for emphasis. Include Chinese text labels and short annotations where helpful — NO English text anywhere. Use arrows, numbered steps, comparison panels, callouts to explain the concept visually. Minimal flat 2D."
+
+output:
+  speed: 1.0
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 2.5
+  fade_out: 3
+
+cover:
+  narration: "公司离不开你，才是最大的问题"
+  illustration_prompt: "Hand-drawn sketch style stick figure boss locked in chains to a building, surrounded by question marks and arrows all pointing back to them, red accent color showing danger, bold black ink lines, white background, minimal flat 2D style, no English text"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      你是公司最忙的人。
+      每件事都要你拍板。
+      每个问题最后都绕回到你。
+      员工不是不想做，是不知道你会怎么做。
+      这听起来像是你很重要。
+      但实际上，这是一个危险信号。
+      你在，公司转。你不在，公司乱。
+      这是能力，还是问题？
+      根源是什么？
+      你的能力只活在你脑子里。
+      而不是公司的系统里。
+      团队不是不行。
+      是你从来没有把怎么做变成他们能用的东西。
+      三件事，让能力从你脑子里走出来。
+      第一，选人。
+      不是找比你强的，是找能补你一块短板的。
+      你懂业务但流程一团糟，找一个能管流程的人。
+      你擅长谈客户但做不好运营，找一个能跑日常的人。
+      这叫拼图思维，不叫降低标准。
+      第二，做事。
+      把你脑子里的做法变成流程。
+      写下来，一步一步，变成SOP。
+      60分乘以10个人，换掉90分乘以1个人，哪个赢？
+      而且只有你把做法写下来，AI才能帮你用它。
+      有SOP加AI。
+      一个普通员工的输出可以逼近80分。
+      没有流程，AI是工具。有了流程，AI是杠杆。
+      第三，管理。
+      不是盯着人，而是建系统。
+      如果你消失一个月，公司会怎样？
+      锁在你身上的能力，只能用一次。
+      沉淀进系统的能力，才是公司真正的资产。
+      从今天开始，找一项你每周都在做的事情。
+      把步骤写下来。
+      不用完美，不用全面。
+      就是你现在的做法，一步一步写清楚。
+      你现在，有没有一件事今天就能写成流程？
+      请在评论区说说你的想法。
+    illustration_keywords:
+      - busy boss overwhelmed
+      - null
+      - null
+      - null
+      - null
+      - danger signal warning
+      - company depends on you
+      - null
+      - null
+      - ability locked in brain
+      - null
+      - null
+      - null
+      - three things unlock
+      - hiring strategy
+      - complement weakness puzzle
+      - null
+      - null
+      - null
+      - process documentation
+      - null
+      - null
+      - sixty times ten vs ninety times one
+      - null
+      - null
+      - null
+      - null
+      - management system building
+      - null
+      - null
+      - ability locked once used
+      - system as company asset
+      - one action today
+      - null
+      - null
+      - null
+      - question mark reflection
+      - null

@@ -423,7 +423,6 @@ def _prepare_preview_illustrations(scenes: list[dict]) -> bool:
     _PREVIEW_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
     copied_from_cache = 0
-    generated = 0
     aliased_from_preview = 0
     resolved_keywords = 0
 
@@ -448,20 +447,8 @@ def _prepare_preview_illustrations(scenes: list[dict]) -> bool:
             resolved_keywords += 1
             continue
 
-        # 尝试生成插画
-        generated_path = _generate_illustration(keyword)
-        if generated_path is not None:
-            cache_dest = _PREVIEW_ASSETS_DIR / generated_path.name
-            if not cache_dest.exists():
-                shutil.copy2(generated_path, cache_dest)
-
-            alias_dest = _PREVIEW_ASSETS_DIR / f"{safe_name}{generated_path.suffix.lower()}"
-            if not alias_dest.exists():
-                shutil.copy2(cache_dest, alias_dest)
-            generated += 1
-            resolved_keywords += 1
-            continue
-
+        # 预览模式不生成新插画（避免触发 API 调用 / 限流）
+        # 直接尝试从已有预览资产借用
         existing_preview_assets = _list_preview_asset_images()
         if existing_preview_assets:
             fallback = existing_preview_assets[0]
@@ -490,12 +477,11 @@ def _prepare_preview_illustrations(scenes: list[dict]) -> bool:
     use_placeholder = resolved_keywords == 0
     unresolved_count = len(keywords) - resolved_keywords
     log.info(
-        "预览插画准备: keywords=%d, resolved=%d, unresolved=%d, cache_copied=%d, generated=%d, preview_aliased=%d, placeholder=%s",
+        "预览插画准备: keywords=%d, resolved=%d, unresolved=%d, cache_copied=%d, preview_aliased=%d, placeholder=%s",
         len(keywords),
         resolved_keywords,
         unresolved_count,
         copied_from_cache,
-        generated,
         aliased_from_preview,
         use_placeholder,
     )
@@ -662,6 +648,22 @@ def _write_temp_yaml(template: str, params: dict) -> str:
             eid = elem.get("id", "")
             if eid in elem_fs:
                 elem["font_size_override"] = int(elem_fs[eid])
+
+    # 应用 element_colors 覆盖到 positionable_elements（每元素独立颜色）
+    elem_colors = params.get("element_colors")
+    if isinstance(elem_colors, dict) and elem_colors and pe_list:
+        for elem in pe_list:
+            eid = elem.get("id", "")
+            if eid in elem_colors and elem_colors[eid]:
+                elem["color_override"] = str(elem_colors[eid])
+
+    # 应用 element_fonts 覆盖到 positionable_elements（每元素独立字体）
+    elem_fonts = params.get("element_fonts")
+    if isinstance(elem_fonts, dict) and elem_fonts and pe_list:
+        for elem in pe_list:
+            eid = elem.get("id", "")
+            if eid in elem_fonts and elem_fonts[eid]:
+                elem["font_override"] = str(elem_fonts[eid])
 
     # 应用 animation 参数覆盖
     anim_params = params.get("animation")
@@ -1283,6 +1285,12 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             override["element_visibility"] = params["element_visibility"]
         if "element_font_sizes" in params and isinstance(params["element_font_sizes"], dict):
             override["element_font_sizes"] = params["element_font_sizes"]
+        if "element_colors" in params and isinstance(params["element_colors"], dict):
+            override["element_colors"] = params["element_colors"]
+        if "element_fonts" in params and isinstance(params["element_fonts"], dict):
+            override["element_fonts"] = params["element_fonts"]
+        if "cover" in params and isinstance(params["cover"], dict):
+            override["cover"] = params["cover"]
         if "positions" in params and isinstance(params["positions"], dict):
             override["positions"] = params["positions"]
         # 动画、图片、插画参数

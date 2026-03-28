@@ -1001,6 +1001,15 @@
       if (!Array.isArray(params.brand.footer_tags)) {
         params.brand.footer_tags = [];
       }
+      if (!params.element_colors || typeof params.element_colors !== 'object') {
+        params.element_colors = {};
+      }
+      if (!params.element_fonts || typeof params.element_fonts !== 'object') {
+        params.element_fonts = {};
+      }
+      if (!params.cover || typeof params.cover !== 'object') {
+        params.cover = {};
+      }
       return params;
     }
 
@@ -1175,7 +1184,7 @@
       // 二级（默认折叠）：装饰元素、品牌信息、背景设置
       if (currentManifestElements && currentManifestElements.length > 0) {
         const primaryIds = ['topic', 'subtitle', 'illustration', 'caption'];
-        const secondaryIds = ['author_name', 'author_avatar', 'logo', 'pinyin_text', 'disclaimer', 'footer_bar'];
+        const secondaryIds = ['author_name', 'slogan', 'author_avatar', 'logo', 'pinyin_text', 'disclaimer', 'footer_bar'];
         const bgLayerIds = ['portrait', 'gradient_overlay'];
 
         const byId = {};
@@ -1231,9 +1240,83 @@
         // 音频试听区块
         const audioSection = renderAudioPreviewSection();
         if (audioSection) ui.panelBody.appendChild(audioSection);
+
+        // 封面设计区块
+        const coverSection = renderCoverDesignSection();
+        if (coverSection) ui.panelBody.appendChild(coverSection);
       } else {
         ui.panelBody.appendChild(renderBackgroundAndPaletteSection());
       }
+    }
+
+    // ── 封面设计区块 ─────────────────────────────────────────────────────────
+    function renderCoverDesignSection() {
+      const group = renderGroupSection('封面设计', true);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'padding:8px 12px;display:flex;flex-direction:column;gap:10px;';
+
+      // 封面插画提示词
+      const illusLabel = document.createElement('div');
+      illusLabel.style.cssText = 'font-size:12px;font-weight:600;color:var(--fg);';
+      illusLabel.textContent = '封面插画提示词';
+      wrap.appendChild(illusLabel);
+
+      const illusHint = document.createElement('div');
+      illusHint.style.cssText = 'font-size:11px;color:var(--muted);margin-top:-6px;';
+      illusHint.textContent = '描述封面图片内容，在 pipeline 生图时使用（不触发实时渲染）';
+      wrap.appendChild(illusHint);
+
+      const illusTextarea = document.createElement('textarea');
+      illusTextarea.rows = 4;
+      illusTextarea.style.cssText = 'width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);resize:vertical;';
+      if (!currentParams.cover) currentParams.cover = {};
+      illusTextarea.value = currentParams.cover.illustration_prompt || '';
+      illusTextarea.placeholder = '例：黑白铅笔素描，一个商务人士站在三叉路口，三条路通向不同方向...';
+      illusTextarea.addEventListener('input', (e) => {
+        if (!currentParams.cover) currentParams.cover = {};
+        currentParams.cover.illustration_prompt = e.target.value;
+        saveParams();
+      });
+      wrap.appendChild(illusTextarea);
+
+      // 封面旁白
+      const narLabel = document.createElement('div');
+      narLabel.style.cssText = 'font-size:12px;font-weight:600;color:var(--fg);';
+      narLabel.textContent = '封面旁白（留空则读标题）';
+      wrap.appendChild(narLabel);
+
+      const narInput = document.createElement('input');
+      narInput.type = 'text';
+      narInput.style.cssText = 'width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);';
+      narInput.value = currentParams.cover?.narration || '';
+      narInput.placeholder = '封面播放时朗读的文字';
+      narInput.addEventListener('input', (e) => {
+        if (!currentParams.cover) currentParams.cover = {};
+        currentParams.cover.narration = e.target.value;
+        saveParams();
+      });
+      wrap.appendChild(narInput);
+
+      // 开场音效路径
+      const sfxLabel = document.createElement('div');
+      sfxLabel.style.cssText = 'font-size:12px;font-weight:600;color:var(--fg);';
+      sfxLabel.textContent = '开场音效路径';
+      wrap.appendChild(sfxLabel);
+
+      const sfxInput = document.createElement('input');
+      sfxInput.type = 'text';
+      sfxInput.style.cssText = 'width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);';
+      sfxInput.value = currentParams.cover?.opening_sfx || '';
+      sfxInput.placeholder = '/path/to/sound.mp3';
+      sfxInput.addEventListener('input', (e) => {
+        if (!currentParams.cover) currentParams.cover = {};
+        currentParams.cover.opening_sfx = e.target.value;
+        saveParams();
+      });
+      wrap.appendChild(sfxInput);
+
+      group.content.appendChild(wrap);
+      return group.section;
     }
 
     // ── 插画提示词编辑区块 ──────────────────────────────────────────────────
@@ -1574,6 +1657,103 @@
         fsRow.appendChild(fsLabel);
         fsRow.appendChild(fsInputContainer);
         content.appendChild(fsRow);
+
+        // ── 独立字体选择器 ──
+        const CHINESE_FONTS = [
+          { label: '— 继承全局字体 —', value: '' },
+          { label: '黑体 (Heiti SC)', value: 'Heiti SC' },
+          { label: '宋体 (Songti SC)', value: 'Songti SC' },
+          { label: '楷体 (Kaiti SC)', value: 'Kaiti SC' },
+          { label: '苹方 (PingFang SC)', value: 'PingFang SC' },
+          { label: '阿里巴巴普惠体 2.0', value: '阿里巴巴普惠体 2.0' },
+          { label: '方正兰亭黑', value: '方正兰亭黑' },
+          { label: '思源黑体 (Noto Sans SC)', value: 'Noto Sans SC' },
+          { label: '思源宋体 (Noto Serif SC)', value: 'Noto Serif SC' },
+        ];
+        if (!currentParams.element_fonts) currentParams.element_fonts = {};
+        const fontRow = document.createElement('div');
+        fontRow.className = 'param-row';
+        const fontLabel = document.createElement('div');
+        fontLabel.className = 'param-label';
+        fontLabel.textContent = '字体';
+        const fontContainer = document.createElement('div');
+        fontContainer.className = 'param-input';
+        const fontSelect = document.createElement('select');
+        fontSelect.style.cssText = 'flex:1;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:12px;';
+        const curFont = currentParams.element_fonts[el.id] || '';
+        CHINESE_FONTS.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.value;
+          opt.textContent = f.label;
+          if (f.value === curFont) opt.selected = true;
+          fontSelect.appendChild(opt);
+        });
+        fontSelect.addEventListener('change', (e) => {
+          if (!currentParams.element_fonts) currentParams.element_fonts = {};
+          if (e.target.value) {
+            currentParams.element_fonts[el.id] = e.target.value;
+          } else {
+            delete currentParams.element_fonts[el.id];
+          }
+          saveParams();
+        });
+        fontContainer.appendChild(fontSelect);
+        fontRow.appendChild(fontLabel);
+        fontRow.appendChild(fontContainer);
+        content.appendChild(fontRow);
+
+        // ── 独立颜色拾取器 ──
+        if (!currentParams.element_colors) currentParams.element_colors = {};
+        const elColorRow = document.createElement('div');
+        elColorRow.className = 'param-row';
+        const elColorLabel = document.createElement('div');
+        elColorLabel.className = 'param-label';
+        elColorLabel.textContent = '文字颜色';
+        const elColorContainer = document.createElement('div');
+        elColorContainer.className = 'param-input';
+        elColorContainer.style.gap = '6px';
+
+        // 默认颜色：已保存的 > color_fields 对应的颜色 > text
+        let defaultElemColor = currentParams.layout.colors.text || '#000000';
+        if ((mapping.color_fields || []).length > 0) {
+          defaultElemColor = currentParams.layout.colors[mapping.color_fields[0].key] || defaultElemColor;
+        }
+        const savedElemColor = currentParams.element_colors[el.id] || defaultElemColor;
+
+        const elColorPicker = document.createElement('input');
+        elColorPicker.type = 'color';
+        elColorPicker.value = savedElemColor;
+        const elColorText = document.createElement('input');
+        elColorText.type = 'text';
+        elColorText.value = savedElemColor;
+        const elColorReset = document.createElement('button');
+        elColorReset.type = 'button';
+        elColorReset.textContent = '重置';
+        elColorReset.style.cssText = 'font-size:11px;padding:2px 8px;';
+        elColorReset.addEventListener('click', () => {
+          if (!currentParams.element_colors) currentParams.element_colors = {};
+          delete currentParams.element_colors[el.id];
+          elColorPicker.value = defaultElemColor;
+          elColorText.value = defaultElemColor;
+          saveParams();
+        });
+
+        const syncElemColor = (val) => {
+          if (!currentParams.element_colors) currentParams.element_colors = {};
+          currentParams.element_colors[el.id] = val;
+          elColorPicker.value = val;
+          elColorText.value = val;
+          saveParams();
+        };
+        elColorPicker.addEventListener('input', (e) => syncElemColor(e.target.value));
+        elColorText.addEventListener('change', (e) => syncElemColor(e.target.value));
+
+        elColorContainer.appendChild(elColorPicker);
+        elColorContainer.appendChild(elColorText);
+        elColorContainer.appendChild(elColorReset);
+        elColorRow.appendChild(elColorLabel);
+        elColorRow.appendChild(elColorContainer);
+        content.appendChild(elColorRow);
       }
 
       // 品牌字段（文字输入，支持多行）
@@ -1616,42 +1796,6 @@
         content.appendChild(row);
       }
 
-      // 颜色字段
-      (mapping.color_fields || []).forEach(cf => {
-        const colorVal = currentParams.layout.colors[cf.key] || '#000000';
-        const row = document.createElement('div');
-        row.className = 'param-row';
-        const label = document.createElement('div');
-        label.className = 'param-label';
-        label.textContent = cf.label;
-        const inputContainer = document.createElement('div');
-        inputContainer.className = 'param-input';
-
-        const colorInput = document.createElement('input');
-        colorInput.type = 'color';
-        colorInput.value = colorVal;
-        const textInput = document.createElement('input');
-        textInput.type = 'text';
-        textInput.value = colorVal;
-
-        colorInput.addEventListener('input', (e) => {
-          currentParams.layout.colors[cf.key] = e.target.value;
-          textInput.value = e.target.value;
-          saveParams();
-        });
-        textInput.addEventListener('input', (e) => {
-          currentParams.layout.colors[cf.key] = e.target.value;
-          colorInput.value = e.target.value;
-          saveParams();
-        });
-
-        inputContainer.appendChild(colorInput);
-        inputContainer.appendChild(textInput);
-        row.appendChild(label);
-        row.appendChild(inputContainer);
-        content.appendChild(row);
-      });
-
       // 额外字段（slider / select）
       if (mapping.extra_fields) {
         mapping.extra_fields.forEach(ef => {
@@ -1675,10 +1819,14 @@
             const valueSpan = document.createElement('span');
             valueSpan.className = 'slider-value';
             valueSpan.textContent = slider.value;
+            let _sliderRenderTimer = null;
             slider.addEventListener('input', (e) => {
               valueSpan.textContent = e.target.value;
               setValueByPath(ef.key, parseFloat(e.target.value));
               saveParams();
+              // 防抖：停止拖动 600ms 后触发渲染
+              clearTimeout(_sliderRenderTimer);
+              _sliderRenderTimer = setTimeout(() => scheduleRender(), 600);
             });
             row.appendChild(slider);
             row.appendChild(valueSpan);
@@ -2162,6 +2310,97 @@
         paletteGrid.appendChild(item);
       });
       content.appendChild(paletteGrid);
+
+      // ── 背景图片上传 ──
+      const bgImgSection = document.createElement('div');
+      bgImgSection.style.cssText = 'margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:6px;background:#fafcff;';
+      const bgImgTitle = document.createElement('div');
+      bgImgTitle.style.cssText = 'font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;';
+      bgImgTitle.textContent = '背景图片';
+      bgImgSection.appendChild(bgImgTitle);
+
+      // 当前背景图片选择下拉（从 assets 现有图片中选）
+      const bgImgRow = document.createElement('div');
+      bgImgRow.className = 'param-row';
+      bgImgRow.style.marginBottom = '8px';
+      const bgImgLabel = document.createElement('div');
+      bgImgLabel.className = 'param-label';
+      bgImgLabel.textContent = '选择图片';
+      const bgImgContainer = document.createElement('div');
+      bgImgContainer.className = 'param-input';
+      const bgImgSelect = document.createElement('select');
+      bgImgSelect.style.cssText = 'flex:1;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:12px;';
+      const bgImgEmpty = document.createElement('option');
+      bgImgEmpty.value = '';
+      bgImgEmpty.textContent = '— 不使用背景图片 —';
+      bgImgSelect.appendChild(bgImgEmpty);
+      const curBgImg = (currentParams.layout && currentParams.layout.background_image) || '';
+      fetch(`${API_BASE}/api/list-images`)
+        .then(r => r.json())
+        .then(data => {
+          (data.images || []).forEach(imgPath => {
+            const opt = document.createElement('option');
+            opt.value = imgPath;
+            opt.textContent = imgPath.replace(/^assets\//, '');
+            if (imgPath === curBgImg) opt.selected = true;
+            bgImgSelect.appendChild(opt);
+          });
+        }).catch(() => {});
+      bgImgSelect.addEventListener('change', () => {
+        if (!currentParams.layout) currentParams.layout = {};
+        currentParams.layout.background_image = bgImgSelect.value || null;
+        saveParams();
+      });
+      bgImgContainer.appendChild(bgImgSelect);
+      bgImgRow.appendChild(bgImgLabel);
+      bgImgRow.appendChild(bgImgContainer);
+      bgImgSection.appendChild(bgImgRow);
+
+      // 上传新图片
+      const bgUploadRow = document.createElement('div');
+      bgUploadRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      const bgUploadLabel = document.createElement('div');
+      bgUploadLabel.style.cssText = 'font-size:12px;color:var(--muted);flex-shrink:0;';
+      bgUploadLabel.textContent = '上传新图片';
+      const bgFileInput = document.createElement('input');
+      bgFileInput.type = 'file';
+      bgFileInput.accept = 'image/png,image/jpeg,image/webp';
+      bgFileInput.style.cssText = 'flex:1;font-size:12px;';
+      const bgUploadStatus = document.createElement('span');
+      bgUploadStatus.style.cssText = 'font-size:11px;color:var(--muted);';
+      bgFileInput.addEventListener('change', async () => {
+        const file = bgFileInput.files[0];
+        if (!file) return;
+        bgUploadStatus.textContent = '上传中...';
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const resp = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', body: formData });
+          const data = await resp.json();
+          if (data.path) {
+            bgUploadStatus.textContent = '✓ 上传成功';
+            if (!currentParams.layout) currentParams.layout = {};
+            currentParams.layout.background_image = data.path;
+            // 加入 select 并选中
+            const newOpt = document.createElement('option');
+            newOpt.value = data.path;
+            newOpt.textContent = data.path.replace(/^assets\//, '');
+            newOpt.selected = true;
+            bgImgSelect.appendChild(newOpt);
+            saveParams();
+          } else {
+            bgUploadStatus.textContent = '✗ ' + (data.error || '失败');
+          }
+        } catch(e) {
+          bgUploadStatus.textContent = '✗ 网络错误';
+        }
+        bgFileInput.value = '';
+      });
+      bgUploadRow.appendChild(bgUploadLabel);
+      bgUploadRow.appendChild(bgFileInput);
+      bgUploadRow.appendChild(bgUploadStatus);
+      bgImgSection.appendChild(bgUploadRow);
+      content.appendChild(bgImgSection);
 
       header.addEventListener('click', () => {
         content.classList.toggle('collapsed');

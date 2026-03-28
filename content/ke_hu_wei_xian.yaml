@@ -1,0 +1,191 @@
+template: sketch-card
+title: "客户越多越危险"
+
+brand:
+  topic: "客户越多越危险"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "成长分享，伴你前行"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 1.5
+  fade_out: 3
+
+cover:
+  narration: "客户越多越危险"
+  illustration_prompt: "Hand-drawn sketch style stick figure entrepreneur overwhelmed by crowd of people reaching toward them, red accent color showing stress, bold black ink lines, white background, minimal flat 2D style, no English text"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      很多创业者有一个执念。
+      客户越多越好。
+      有单就接，有钱就赚。
+      背后的逻辑是。
+      我要活下去。
+      我不能挑客户。
+      这个逻辑听起来很务实。
+      但它指向了一个危险的方向。
+      客户越多。
+      不等于生意越好。
+      很多时候。
+      客户越多越危险。
+      你见过这种创业者吗？
+      什么单都接。
+      什么客户都服务。
+      看起来很忙。
+      但公司做不大。
+      不是因为不够努力。
+      是因为不会拒绝。
+      他以为客户越多越安全。
+      其实客户越多越危险。
+      什么是凝聚点？
+      保罗贾维斯在一人公司里提到一个概念。
+      凝聚点就是你主动划一条线。
+      这条线把人分成两边。
+      一边是你的人。
+      一边不是。
+      凝聚点不是面向所有人。
+      是面向特定的人。
+      它的核心不是我能服务谁。
+      关键是我不服务谁。
+      凝聚点是高举一面旗帜。
+      让不适合的人主动离开。
+      让适合的人主动靠近。
+      为什么客户越多越危险。
+      第一。
+      你的时间会被撕碎。
+      每个客户需求不一样。
+      你的时间全花在适配上。
+      第二。
+      你的产品会变得平庸。
+      为了满足所有人。
+      只能做最大公约数。
+      第三。
+      你会失去定价权。
+      什么客户都接。
+      结果只能去比价格。
+      只能不断降价。
+      凝聚点不是排斥人。
+      而是在吸引人。
+      当你只服务这类人。
+      你会发现。
+      不适合的人不会来烦你。
+      适合的人会主动找你。
+      你的时间用在了真正有价值的客户身上。
+      你不是在失去客户。
+      你是在找到你的人。
+      三个行动。
+      第一。
+      写出你不服务谁。
+      比我服务谁更重要。
+      第二。
+      在介绍里加一句我不适合谁。
+      筛掉不合适的人。
+      吸引真正合适的人。
+      第三。
+      这周拒绝一个不合适的客户。
+      不是失去客户。
+      是为真正的客户腾出时间。
+      客户越多不等于生意越好。
+      你需要的不是更多客户。
+      是更对的客户。
+      你现在服务的客户里。
+      有多少是不该服务的？
+      请在评论区说说你的看法。
+    illustration_keywords:
+      - obsession trap
+      - null
+      - null
+      - survival logic
+      - null
+      - null
+      - null
+      - dangerous direction
+      - null
+      - null
+      - null
+      - danger warning
+      - busy entrepreneur chaos
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - convergence point concept
+      - null
+      - drawing a line
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - flag raised high
+      - null
+      - null
+      - why dangerous question
+      - null
+      - time shredded
+      - null
+      - null
+      - null
+      - mediocre product
+      - null
+      - null
+      - null
+      - losing pricing power
+      - null
+      - null
+      - null
+      - attraction not exclusion
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - three actions
+      - null
+      - who not to serve list
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null
+      - null

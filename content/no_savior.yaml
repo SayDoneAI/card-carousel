@@ -1,0 +1,71 @@
+template: minimal-insight
+title: "没有人会来救你"
+
+brand:
+  topic: "这意味着，也没有任何人能够阻止你。"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  style_prompt: "Hand-drawn sketch illustration with thick bold black ink lines, rough expressive brushstroke style, like a confident pen drawing in a notebook. Pure white background, no shading, no fill, just thick black outlines. The subject should clearly illustrate the concept: centered composition, no border, no frame, no text. High contrast, bold strokes visible at small size"
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.3
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      一个人只要开始找救命稻草，就已经输了一半。
+      不是输给对手，而是输给了等待本身。
+      你有没有这种感觉：我付出了这么多，受了这么多委屈，老天总该给我一个好结果吧？
+      但宇宙没有记忆。它不在乎你昨天受了多少苦，不记得你付出了多少，更不会因为你熬得够久就派来一个救世主。
+      《遥远的救世主》这本书的名字，说透了一件事——救世主之所以遥远，是因为他根本不存在。
+      在家靠父母，出门靠朋友，靠运气，靠时机，靠人脉……总之靠什么都行，就是别靠自己。这不是某一种人的问题，这是人类的默认设置。
+      等待有三个层次，越往深处越难察觉。
+      第一层，等救星。等投资人、等贵人、等一个能带你飞的合伙人。这层最好识别，因为你知道自己在等。
+      第二层，等时机。等市场成熟，等竞争对手先试错，等政策明朗。这层包装成了"战略判断"，所以最难察觉。
+      第三层，等自己准备好。等再学一点，等团队更稳，等想清楚了再出发。这层最危险，因为它披着"负责任"的外衣，但本质还是在等一个外部条件——一个叫做"完美的自己"的幻象。
+      大多数创始人困在第三层，还以为自己在成长。
+    illustration_keywords:
+      - drowning man grabbing straw
+      - null
+      - person kneeling hands raised to sky
+      - null
+      - vast empty horizon lone figure waiting
+      - null
+      - person standing at three-way crossroads
+      - null
+      - null
+      - null
+      - figure trapped inside glass box
+
+  - name: Scene02_Cards
+    narration: |
+      但真正的转折点，往往不是救星出现的那天，而是你彻底死了被救的心的那天。
+      当你不再等，你才能真正看清自己有什么。当你不再靠，你才能发现自己能做什么。
+      毛毛虫化蝶，不是直接长出翅膀，而是在茧里把旧的身体彻底溶解，再重新长出新的器官。这个过程没有捷径，没有人可以替你完成。
+      没有人会来救你。
+      这意味着，也没有任何人能够阻止你。
+      你现在还在等什么？
+      我是黄赋，我愿成为你创业路上的向导，让你少走无谓的弯路。
+      关注我，陪你打怪升级。
+    illustration_keywords:
+      - person turning back on crutches walking alone
+      - null
+      - butterfly emerging from cocoon
+      - null
+      - fist breaking through wall
+      - null
+      - person standing on mountaintop arms open
+      - null

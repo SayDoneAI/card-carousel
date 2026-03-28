@@ -1,0 +1,46 @@
+template: portrait-notebook
+title: "创业者最贵的不是钱，而是时间"
+
+brand:
+  topic: "时间，一秒都借不到。"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
+  use_character: false
+  use_reference_image: false
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: PortraitNotebookScene
+    narration: |
+      创业者最贵的不是钱，是时间。
+      我问过很多创业者：你现在最缺什么？
+      大部分人说钱、客户、好员工。
+      很少有人说时间。
+      但钱可以借，客户可以找，员工可以招。
+      时间，一秒都借不到。
+    illustration_keywords:
+      - 盯着沙漏站着
+      - null
+      - 双手摊开耸肩
+      - null
+      - 手握沙漏站着
+      - null

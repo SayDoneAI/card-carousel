@@ -23,16 +23,16 @@ PROJECT=~/Documents/RedCode/card-carousel
 
 ## User Input
 
-**用户只需提供一个 Markdown 文档**，包含视频文案。其余所有配置走默认值。
+**用户只需提供一个 Markdown 文档**，包含视频文案。其余所有配置走黄金标准默认值。
 
 示例输入（`认知升级.md`）：
 ```markdown
 # 认知升级
 
-真正阻碍一个人成长的从来不是能力不足
-而是认知顺序的严重错位
-他们把该敬畏的东西当成了敌人
-面对专业他们毫无敬畏总觉得差不多就行了
+真正阻碍一个人成长的从来不是能力不足。
+而是认知顺序的严重错位。
+他们把该敬畏的东西当成了敌人。
+面对专业他们毫无敬畏总觉得差不多就行了。
 ```
 
 用户也可以选择性提供：
@@ -40,6 +40,30 @@ PROJECT=~/Documents/RedCode/card-carousel
 - **播放倍速** — 默认 1.0x
 - **配色方案** — 17 款可选（见下方配色方案章节）
 - **品牌覆盖** — 如果不是默认作者"黄赋"，需要提供 logo_char/author/pinyin
+
+## 黄金标准配置
+
+所有新视频**必须**以 `content/golden_standard.yaml` 为起点（复制后修改）。该文件包含经 6+ 次视频迭代验证的最佳参数：
+
+| 参数 | 黄金值 | 原因 |
+|------|--------|------|
+| voice.speed | **1.2** | 平衡流畅与理解度，不要用默认 1.0 |
+| bgm.volume | **0.05** | 5% 不抢配音 |
+| bgm.voice_volume | **1.5** | 配音放大 |
+| bgm.fade_out | **3** | 结尾 3 秒淡出 |
+| cover | **必须配置** | 封面是标配，包含 illustration_prompt + opening_sfx |
+| 每句 ≤18 字 | **硬性要求** | 超出会自动拆分但容易导致排版问题 |
+
+## Pipeline 质量护栏
+
+pipeline 启动时自动执行旁白质量校验：
+
+| 检查项 | 级别 | 说明 |
+|--------|------|------|
+| 关键词数 ≠ 句子数 | **阻断** | 必须一一对应，否则 pipeline 直接退出 |
+| 句子超过 max_chars | 警告 | 会自动拆分但建议手动拆短 |
+| 结尾非句号/问号/感叹号 | 警告 | 影响 TTS 停顿和静音检测 |
+| 句内含逗号 | 警告 | 可能导致 TTS 停顿，破坏音画同步 |
 
 ## Execution Workflow
 
@@ -73,18 +97,31 @@ ls $PROJECT/templates/
 
 ### Step 1: 解析用户文案 → 生成 config.yaml
 
+**以 `content/golden_standard.yaml` 为起点**，复制一份后修改以下内容：
+
 从用户的 md 文档中提取：
 1. **标题** — 取 `# 标题` 或文件名
 2. **旁白文案** — 正文内容，每行一句
 3. **主题句** — 用户指定的金句，或从文案中提炼一句
-4. **插画关键词** — **由你（Claude）自动生成**，规则：
+4. **封面** — cover.narration 填标题，illustration_prompt 描述封面画面
+5. **插画关键词** — **由你（Claude）自动生成**，规则：
    - 为每句旁白分配一个关键词或 `null`
+   - **关键词数量必须与句子数量完全一致**（pipeline 会校验，不匹配直接报错）
    - 关键词用**中文**，描述性短语（如 `"成长障碍"`, `"狮子咆哮"`）
    - 相邻句子内容相近时用 `null`（复用上一张插画，无切换动画）
    - 内容转折或场景变化时用新关键词（触发滑动动画）
    - 建议每 2-3 句换一张图，节奏感更好
 
-生成的 config.yaml 放在 `$PROJECT/content/` 目录。**config 中的关键字段必须从模板文件中动态读取，不能硬编码**：
+生成的 config.yaml 放在 `$PROJECT/content/` 目录。
+
+**旁白质量硬性要求**（违反会导致音画不同步，pipeline 会警告）：
+- 每句 ≤18 字
+- 句号/问号/感叹号结尾（不用逗号/冒号）
+- 避免句内逗号
+
+**voice.speed 必须为 1.2**（不是默认的 1.0）。
+
+**config 中的关键字段必须从模板文件中动态读取，不能硬编码**：
 
 | config 字段 | 来源 |
 |------------|------|
@@ -98,6 +135,11 @@ config.yaml 结构模板：
 template: <模板名>
 title: "<标题>"
 
+cover:
+  narration: "<标题>"
+  illustration_prompt: "黑白铅笔素描，{封面画面描述}，白色背景，漫画分镜风格，线条简洁有张力，画面显眼位置有一个简短中文手写标注"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
 brand:
   topic: "<从文案中提炼的主题句>"
 
@@ -105,7 +147,7 @@ voice:
   provider: volcengine
   voice_type: zh_male_ruyayichen_uranus_bigtts
   cluster: volcano_tts
-  speed: 1.0
+  speed: 1.2  # 必须 1.2，不要用默认 1.0
 
 illustrations:
   enabled: true
@@ -158,16 +200,19 @@ ffprobe -v quiet -show_format -show_streams <title>_*.mp4 2>/dev/null | grep -E 
 ## Pipeline Steps
 
 ```
-tts → illustrations → render → voice → concat
+[validate] → keywords → tts → illustrations → render → voice → cover → concat
 ```
 
 | Step | What it does |
 |------|-------------|
-| `tts` | 逐句 TTS → 测时长 → 拼接 → 写 timing JSON |
+| `validate` | 自动校验旁白质量（关键词数量匹配、句长、标点、逗号），不匹配直接阻断 |
+| `keywords` | 用 AI 自动为每个场景生成插画关键词（每3-5句一张图） |
+| `tts` | 整场合成 TTS → 静音检测拆分时长 → 写 timing JSON |
 | `illustrations` | 按关键词生成 AI 插画，缓存到 `.cache/`，复制到 `assets/` |
 | `render` | Manim 渲染所有场景（注入环境变量供模板 scene.py 读取） |
 | `voice` | 合并 TTS 音频到渲染好的视频 |
-| `concat` | 拼接所有场景 → 应用倍速 → 最终输出 |
+| `cover` | 封面制作（专用插画 + TTS + Manim 渲染 + 开场音效） |
+| `concat` | 拼接封面 + 所有场景 → 混入 BGM → 最终输出 |
 
 ## Available Templates
 
@@ -345,13 +390,46 @@ author:
 
 ## Illustration Keywords Guide
 
+### 基本规则
 - 每句旁白对应一个关键词或 `null`
+- **关键词数量必须与句子数量完全一致**（pipeline 会校验，不匹配直接报错）
 - `null` = 复用上一张插画（无切换动画）
-- 非 null = 生成新插画 + 左右滑动切换动画
-- 关键词用**中文**，描述性短语
-- 好的关键词：`"山间小路"`, `"如履薄冰"`, `"狮子咆哮"`
-- 差的关键词：`"认知"`, `"一个人在思考某些事情"` (太抽象或太长)
-- 节奏建议：每 2-3 句换一张图
+- 非 null = 生成新插画 + 切换动画
+- 节奏建议：每 3-4 句换一张图
+
+### 插画风格：PPT 图解（不要概念图）
+
+**核心原则**：每张图都是信息图/图表/流程图，像 PPT 讲解一样拆解逻辑，不要散装概念画。
+
+| 类型 | 好的关键词示例 | 坏的关键词示例 |
+|------|--------------|--------------|
+| 对比 | `"two-column chart, left X 违规 right checkmark 合法"` | `"balance scale"` |
+| 数据 | `"timeline 2003-2026 with large number 0 above"` | `"zero icon"` |
+| 流程 | `"circular flow diagram: 越忙→判断差→返工→越忙"` | `"vicious cycle spiral"` |
+| 分支 | `"company split diagram left 2.5% grey right 6.5% red"` | `"two paths"` |
+| 总结 | `"three stacked blocks 政策 事实 逻辑 arrow to 合法合规"` | `"conclusion"` |
+
+### 步骤类内容：底图渐进展开
+
+步骤/流程类内容不要每步一张完全不同的图，而是**基于同一底图逐步展开**（像 PPT 动画）：
+
+1. 先生成一张「总览图」（所有步骤灰色占位）
+2. 后续每步用 img2img（`strength=0.4`）基于总览图生成变体，逐步点亮
+3. 在 pipeline 外手动生成：`python3 tools/image_gen.py "prompt" --input base.jpg --strength 0.4`
+
+### 封面插画
+
+封面使用 `cover_fullscreen: true`，插画自带完整信息（标题+要点），模板不叠加红色标题：
+- 信息图风格：大标题 + 2-3 个要点（带勾号/图标）+ 底部钩子文案
+- 站在客户角度：封面要回答"跟我有关吗？值得看吗？"
+
+### 缓存注意事项
+
+更新插画后，如果视频中看到的还是旧图，需要清理以下缓存：
+1. `media/<config>/illustrations/*_nobg.png` — 去背景缓存
+2. `media/<config>/videos/*/partial_movie_files/` — Manim 分片缓存
+3. `media/<config>/videos/cover/` — 封面渲染缓存
+4. `assets/cover_*.jpg` — 封面插画缓存
 
 ## Creating a New Template
 

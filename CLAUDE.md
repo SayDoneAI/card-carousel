@@ -48,6 +48,7 @@ card-carousel/
 │       └── defaults.yaml    # 模板默认配置
 ├── content/
 │   ├── example.yaml         # 新模式配置示例（带 template 字段）
+│   ├── template_standard.yaml # sketch-card 标准配置（最佳实践）
 │   └── portrait_example.yaml  # 人物模板示例配置
 ├── assets/
 │   ├── illustrations/       # Manim 引用的插画文件（从 cache 复制）
@@ -116,3 +117,72 @@ python pipeline.py config.yaml --speed 1.5  # 1.5 倍速
 - Python UTF-8，配置集中在 YAML，代码中不硬编码品牌/文案
 - 插画按关键词缓存，`null` 关键词表示复用上一张图
 - 引擎返回 Result 对象（不 sys.exit），orchestrator 统一处理错误
+
+## 最佳实践（经过多次迭代验证）
+
+### 黄金标准配置
+
+**所有新视频必须以 `content/golden_standard.yaml` 为起点**。该文件包含经 6+ 次视频迭代验证的全部最佳参数（dark-card 模板）。复制后只需修改 title、brand.topic、scenes 三处。
+
+另有 `content/template_standard.yaml` 对应 sketch-card 模板。
+
+### Pipeline 质量护栏
+
+`run_pipeline()` 启动时自动执行 `_validate_narration()` 校验：
+- **阻断**：关键词数量与句子数量不匹配（直接 exit）
+- **警告**：句子超长（>max_chars）、结尾标点不规范、句内含逗号
+
+### 语速与 BGM
+- **TTS 语速**: 1.2x（`voice.speed: 1.2`）— 平衡流畅度与理解度
+- **BGM 音量**: 5%（`bgm.volume: 0.05`）— 不抢配音，营造氛围
+- **BGM 淡出**: 3秒（`bgm.fade_out: 3`）
+
+### 旁白规则（确保字幕音频同步）
+1. **每句 ≤18 字** — 确保单行显示，避免换行
+2. **用句号、问号、感叹号结尾** — 不用冒号、逗号结尾
+3. **避免句内逗号** — 逗号会导致 TTS 停顿，影响静音检测时长切分
+4. **1 句 = 1 卡片 = 1 TTS 片段** — 保证字幕音频严格同步
+
+### 插画关键词规则
+1. 每句旁白对应一个关键词或 `null`
+2. `null` = 复用上一张插画（无切换动画）
+3. 非 `null` = 生成新插画 + 切换动画
+4. 建议每 3-4 句换一张图
+5. 内容转折或场景变化时用新关键词
+
+### 插画风格（PPT 图解，不要概念图）
+- 每张图都是**信息图/图表/流程图**，像 PPT 讲解一样拆解逻辑
+- 用对比表、时间线、柱状图、分支图等具体图表类型
+- 数据说话：突出具体数字和对比
+- **步骤类内容用同一底图逐步展开**（img2img, strength=0.4），不要每步一张完全不同的图
+- 坏例子：`"missing puzzle piece"`（抽象概念图）
+- 好例子：`"two-column chart, left X 违规 right checkmark 合法"`（具体图表）
+
+### 封面设计
+- 使用 `cover_fullscreen: true`，插画自带完整信息，模板不叠加标题
+- 站在客户角度设计：回答"跟我有关吗？值得看吗？"
+- 铁证清单型（勾号+要点）、数据冲击型（对比数字）等效果较好
+
+### 缓存清理
+更新插画后如果视频仍显示旧图，需清理：
+- `media/<config>/illustrations/*_nobg.png`（去背景缓存）
+- `media/<config>/videos/*/partial_movie_files/`（Manim 分片缓存）
+- `media/<config>/videos/cover/`（封面渲染缓存）
+- `assets/cover_*.jpg`（封面插画缓存）
+
+### 插画生成注意事项
+- **纯中文要求**: style_prompt 已强制 "no English text, no Latin letters"
+- **缓存机制**: 插画按关键词缓存在 `.cache/illustrations/`，复制到 `assets/illustrations/` 供 Manim 使用
+- **重新生成**: 若需重新生成，必须同时删除 `.cache/` 和 `assets/` 中的文件，并清除 `media/videos/scene/1080p60/partial_movie_files/`（Manim 分片缓存）
+
+### 字幕同步算法
+- **策略**: 按字数比例计算每个句子边界的期望时间点，然后为每个边界找最近的静音区间（搜索窗口±70%平均句长）
+- **避免**: 旧算法取全局最长静音会被 TTS 戏剧性停顿误导，导致时长严重偏移
+- **实现**: `core/orchestrator.py::_split_by_silences()`
+
+### 品牌签名
+- **作者**: "创业向导，少走弯路，多做正事"
+- **tagline**: "成长分享，伴你前行"（封面及卡片底部显示）
+
+### 标准配置模板
+参考 `content/template_standard.yaml`，包含所有经过验证的最佳参数。

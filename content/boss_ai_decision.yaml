@@ -1,0 +1,115 @@
+template: sketch-card
+title: "老板越忙，决策越差：我用AI找回30%判断精力"
+
+cover:
+  narration: "老板越忙决策越差：我用AI找回30%判断精力"
+  illustration_prompt: "黑白铅笔素描，一个疲惫的老板坐在堆满文件的桌前，头上有很多问号和箭头指向他，旁边一个AI机器人在帮他整理文件，白色背景，漫画分镜风格，线条简洁有张力，画面显眼位置有中文手写标注判断力"
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+brand:
+  topic: "判断得太多，不如沉淀判断标准"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines: [kling, doubao]
+  fallback_models: [kling-v3, doubao-seedream-5-0-260128]
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 1.5
+  fade_out: 3
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      很多老板最累的不是事多。
+      而是脑子停不下来。
+      白天开会晚上回消息。
+      睡前还在想明天的事。
+      真正的问题是什么？
+      你的决策负担太重了。
+      定方向分资源盯执行。
+      全压在你一个人身上。
+      越忙越没时间思考。
+      判断老化决策变差。
+      团队返工你更忙。
+      恶性循环就转起来了。
+    illustration_keywords:
+      - PPT slide showing stick figure boss surrounded by icons phone ringing meeting notes emails clock showing day and night arrows all pointing at him
+      - null
+      - null
+      - null
+      - PPT slide showing three heavy boxes labeled 定方向 分资源 盯执行 all stacking on one stick figure with weight lines showing pressure
+      - null
+      - null
+      - null
+      - "PPT slide showing circular flow diagram with arrows: 越忙 没时间思考 判断差 返工 越忙 each node has simple icon"
+      - null
+      - null
+      - null
+
+  - name: Scene02_Cards
+    narration: |
+      很多老板试过三种办法。
+      第一招招个能人中层。
+      磨合要时间你没有。
+      第二招上一堆AI工具。
+      流程没变还是等你拍板。
+      老板缺的不是工具。
+      是能反复用的判断标准。
+      AI能替你做基础判断。
+      就是六七十分的初判。
+      AI先初判你再终判。
+      精力留给真正需要你的事。
+    illustration_keywords:
+      - PPT slide titled 错误解法1 showing stick figure recruiting new hire hourglass running out X mark labeled 磨合需要时间
+      - null
+      - null
+      - PPT slide titled 错误解法2 showing AI tool icons on screen but arrow still points to boss for approval labeled 流程没变
+      - null
+      - PPT slide with comparison left side crossed out 工具 right side highlighted box 判断标准 large text 缺的不是工具
+      - null
+      - PPT slide showing flow diagram decisions enter AI box labeled 初判60分 then arrow to boss box labeled 终判 with label 精力留给关键判断
+      - null
+      - null
+      - null
+
+  - name: Scene03_Cards
+    narration: |
+      关键是让AI学你的决策。
+      第一步每天记三个判断。
+      不记结论记过程。
+      第二步整理成决策框架。
+      第三步喂给AI做初判。
+      第四步每周复盘错判。
+      有个老板同时跑五条线。
+      AI初判后他只看分歧点。
+      决策效率翻了四倍。
+      三个月释放三成判断精力。
+      判断得太多不如沉淀标准。
+    illustration_keywords:
+      - PPT slide overview titled 四步决策训练法 with 4 numbered circles in a vertical line all dimmed
+      - vertical roadmap with 4 numbered circles, circle 1 enlarged showing person recording voice memo, circles 2 3 4 are small dotted outlines
+      - null
+      - vertical roadmap circles 1 and 2 filled, circle 2 enlarged showing flowchart with arrows, circles 3 4 dotted outlines
+      - vertical roadmap circles 1 2 3 filled, circle 3 enlarged showing human and AI comparing notes side by side, circle 4 dotted
+      - vertical roadmap all 4 circles filled and connected, circle 4 enlarged showing checklist with red rules, complete loop
+      - PPT slide showing case 5 business lines arrow AI screening arrow boss focuses on 2 divergent ones only labeled 决策效率x4
+      - null
+      - PPT slide showing large result bar chart with 30 percent freed judgment energy highlighted text 三个月见效
+      - null
+      - null

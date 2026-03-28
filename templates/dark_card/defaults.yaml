@@ -1,0 +1,157 @@
+name: dark-card
+description: "暗色卡片 — 白色卡片浮在黑底 + 分隔线 + 字幕底部"
+
+illustrations:
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
+  remove_bg: false
+  use_character: false
+  use_reference_image: false
+  style_prompt: "黑白铅笔素描，{keyword}，白色背景，像漫画分镜的一格，有构图张力，线条简洁但有轻重，人物动作传递情绪，可以有1-2个人或物，在画面显眼位置加入一个简短中文手写标注词语（如箭头指向主体、或写在标牌上），只出现一次，不要日文不要英文"
+
+canvas:
+  pixel_width: 1080
+  pixel_height: 1920
+
+layout:
+  font: "Heiti SC"
+  wrap_chars: 20
+  max_chars_per_card: 40
+  pixel_height: 1920
+  illustration_size: 7.5
+  font_size: 38
+  title_font: "阿里巴巴普惠体 2.0"
+  author_avatar: "assets/avatar.png"
+  background:
+    type: "gradient"
+    direction: "vertical"
+    stops:
+      - { position: 0, color: "#1A1A1A" }
+      - { position: 50, color: "#111111" }
+      - { position: 100, color: "#0A0A0A" }
+  colors:
+    bg: "#0A0A0A"
+    text: "#1A1A1A"
+    accent: "#FFD700"
+    subtitle: "#888888"
+    pinyin: "#888888"
+    muted: "#888888"
+    bar_bg: "#F5F5F5"
+    bar_text: "#1A1A1A"
+  card:
+    enabled: true
+    width_percent: 92
+    height_percent: 74
+    center_y_percent: 44
+    corner_radius: 0.2
+    fill_color: "#FFFFFF"
+    line_color: "#CCCCCC"
+    line_stroke: 2.0
+    top_line_y_percent: 17
+    bottom_line_y_percent: 77
+
+brand_defaults:
+  author: "@黄赋"
+  slogan: "关注我，陪你打怪升级"
+
+positionable_elements:
+  - id: "topic"
+    type: "text"
+    label: "顶部标题"
+    visible: true
+    default_x: 50.0
+    default_y: 13.5
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "topic", label: "顶部标题文字" }
+    color_fields:
+      - { key: "subtitle", label: "标题颜色" }
+    font_size_override: 40
+    font_override: "阿里巴巴普惠体 2.0"
+    weight: "heavy"
+
+  - id: "illustration"
+    type: "illustration"
+    label: "插画"
+    visible: true
+    width_percent: 88
+    aspect_ratio: "4:3"
+    default_x: 50.0
+    default_y: 47.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    flow_layout: true
+    extra_fields:
+      - { type: "slider", key: "layout.illustration_size", label: "插画大小", min: 3.0, max: 9.0, step: 0.5 }
+      - { type: "select", key: "illustration.aspect_ratio", label: "插画比例", options: ["1:1", "3:4", "4:3", "16:9"] }
+      - type: "select"
+        key: "animation.illustration"
+        label: "切换动画"
+        options:
+          - { value: "slide", label: "滑动切换" }
+          - { value: "fade", label: "淡入淡出" }
+          - { value: "none", label: "直接替换" }
+
+  - id: "caption"
+    type: "caption"
+    label: "字幕"
+    visible: true
+    default_x: 50.0
+    default_y: 84.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    flow_layout: true
+    extra_fields:
+      - type: "select"
+        key: "animation.caption"
+        label: "切换动画"
+        options:
+          - { value: "replace", label: "直接替换" }
+          - { value: "fade", label: "淡入淡出" }
+
+  - id: "author_name"
+    type: "text"
+    label: "作者名"
+    visible: true
+    default_x: 50.0
+    default_y: 88.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "author", label: "作者名" }
+    color_fields:
+      - { key: "subtitle", label: "作者颜色" }
+    font_size_override: 22
+
+  - id: "slogan"
+    type: "text"
+    label: "Slogan"
+    visible: true
+    default_x: 50.0
+    default_y: 92.0
+    min_x: 0
+    max_x: 100
+    min_y: 0
+    max_y: 100
+    step: 1.0
+    brand_field: { key: "slogan", label: "Slogan 文字" }
+    color_fields:
+      - { key: "subtitle", label: "Slogan 颜色" }
+    font_size_override: 20

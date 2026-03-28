@@ -1,0 +1,67 @@
+# sketch-card 模板标准配置
+# 本配置文件包含经过验证的最佳实践参数
+# 另见 golden_standard.yaml（dark-card 黄金标准配置）
+
+template: sketch-card
+title: "标题"
+
+cover:
+  narration: "标题"
+  illustration_prompt: "clean infographic on white background, top area bold large Chinese text {视频标题} with red accent, below 2-3 rows of key points with green checkmark icons, bottom small text with hook line, black ink lines, minimal flat 2D, no English text"
+  cover_fullscreen: true
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+brand:
+  topic: "主题句（红色居中显示）"
+  author: "创业向导，少走弯路，多做正事"
+  tagline: "成长分享，伴你前行"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2  # 最佳语速：1.2x（经过多次迭代验证）
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engine: doubao
+  fallback_model: doubao-seedream-5-0-260128
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+  # style_prompt 已在模板 defaults.yaml 中定义（纯中文，无英文）
+
+output:
+  speed: 1.0
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05      # BGM 5% 音量
+  voice_volume: 1.5 # 配音放大 1.5 倍
+  fade_out: 3
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      第一句话。
+      第二句话。
+      第三句话。
+    illustration_keywords:
+      - keyword1  # 第一句对应关键词（英文短语）
+      - null      # 复用上一张图
+      - keyword2  # 第三句新关键词
+
+# ⚠️ 旁白规则（违反会导致音画不同步）：
+#   1. 每句 ≤18 字 — 确保单行显示
+#   2. 用句号/问号/感叹号结尾 — 不用逗号/冒号结尾
+#   3. 避免句内逗号 — 逗号会导致 TTS 停顿，影响静音检测时长切分
+#   4. 一句 = 一卡片 = 一 TTS 片段 — 保证字幕音频严格同步
+#
+# ⚠️ 关键词规则：
+#   1. 关键词数量必须与句子数量完全一致
+#   2. null = 复用上一张插画（无切换动画）
+#   3. 非 null = 生成新插画 + 左右滑动切换
+#   4. 关键词用英文描述性短语（如 "growth obstacle", "mirror reflection"）
+#   5. 建议每 2-3 句换一张图，保持节奏感
+#   6. 内容转折或场景变化时用新关键词

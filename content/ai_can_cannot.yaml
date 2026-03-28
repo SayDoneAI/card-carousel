@@ -1,0 +1,58 @@
+template: portrait-notebook
+title: "AI能做什么做不到什么"
+
+brand:
+  topic: "AI能帮你更快地表达，但表达什么、站在哪里说话，还是你自己的事。"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.0
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines:
+    - kling
+    - doubao
+  fallback_models:
+    - kling-v3
+    - doubao-seedream-5-0-260128
+  use_character: false
+  use_reference_image: false
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: PortraitNotebookScene
+    narration: |
+      流程建起来之后，AI能帮你三件事。
+      第一，省时间：把重复的事外包出去。
+      纪要、周报、格式整理、资料查找。
+      第二，扩产能：一个人接以前不敢接的量。
+      内容批量生产、多份方案并行、快速响应客户。
+      第三，提质量：AI出第一稿，你做最后判断。
+      输出的稳定性会明显提升。
+      但AI替代不了的，同样清楚。
+      它没有你的立场，没有你在行业里踩过的坑。
+      也没有你和某个客户之间十年的信任。
+      AI能帮你更快地表达。
+      但表达什么、站在哪里说话，还是你自己的事。
+    illustration_keywords:
+      - 同时伸出三只手拿着不同的东西
+      - null
+      - 抱着一摞文件站着
+      - 两手捧着很多东西
+      - null
+      - 坐在桌前低头看一张纸
+      - null
+      - 走到一条横线前停下来
+      - null
+      - null
+      - null
+      - 抬起手臂向前方指去
