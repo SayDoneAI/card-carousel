@@ -30,7 +30,10 @@ class VolcengineTTSEngine(TTSEngine):
             return TTSResult(success=False, error="缺少 VOLC_API_KEY 环境变量")
 
         payload = {
-            "app": {"cluster": self.cluster},
+            "app": {
+                "appid": os.environ.get("VOLC_APP_ID", ""),
+                "cluster": self.cluster,
+            },
             "user": {"uid": "card_carousel"},
             "audio": {
                 "voice_type": self.voice_type,

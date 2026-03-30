@@ -1,9 +1,10 @@
 template: sketch-card
-title: "老板越忙，决策越差：我用AI找回30%判断精力"
+title: "老板越忙，决策越难"
 
 cover:
-  narration: "老板越忙决策越差：我用AI找回30%判断精力"
-  illustration_prompt: "黑白铅笔素描，一个疲惫的老板坐在堆满文件的桌前，头上有很多问号和箭头指向他，旁边一个AI机器人在帮他整理文件，白色背景，漫画分镜风格，线条简洁有张力，画面显眼位置有中文手写标注判断力"
+  narration: "老板越忙，决策越难"
+  illustration_prompt: "clean infographic on white background, top area bold large Chinese text 老板越忙决策越难 with red exclamation mark, below three rows each with icon, row 1 brain icon with text 决策负担太重, row 2 circular arrow icon with text 恶性循环停不下来, row 3 lightbulb icon with text AI帮你做初判, bottom small text 三招破局 看完就能用, black ink lines, minimal flat 2D style, no English text"
+  cover_fullscreen: true
   opening_sfx: "assets/综艺咚咚特效音.mp3"
 
 brand:

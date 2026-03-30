@@ -1,0 +1,88 @@
+template: sketch-card
+title: "6.5%不保证？保证才是风险"
+
+cover:
+  narration: "六点五不是保证的？保证才是风险"
+  illustration_prompt: "clean infographic on white background, top area bold large Chinese text 6.5%不保证？ with red question mark, below two rows each with green checkmark icon, row 1 text 第13年保证回本 全市场最快, row 2 text 红利永久锁定 不会回调, bottom small text 保证等于风险 这才是真相, black ink lines, minimal flat 2D style, no English text"
+  cover_fullscreen: true
+  opening_sfx: "assets/综艺咚咚特效音.mp3"
+
+brand:
+  topic: "保证等于风险，双保证才是真安全"
+  author: "永明星火"
+  tagline: "裂变跃升"
+
+voice:
+  provider: volcengine
+  voice_type: zh_male_ruyayichen_uranus_bigtts
+  cluster: volcano_tts
+  speed: 1.2
+
+illustrations:
+  enabled: true
+  engine: gemini
+  model: gemini-3.1-flash-image-preview
+  fallback_engines: [kling, doubao]
+  fallback_models: [kling-v3, doubao-seedream-5-0-260128]
+  cache_dir: ".cache/illustrations"
+  gen_tool: "tools/image_gen.py"
+
+bgm:
+  file: "assets/bgm.mp3"
+  volume: 0.05
+  voice_volume: 1.5
+  fade_out: 3
+
+output:
+  speed: 1.0
+
+scenes:
+  - name: Scene01_Cards
+    narration: |
+      六点五不是保证的对吧？
+      对预期收益确实不是保证。
+      这是事实我不回避。
+      但反过来问你一句。
+      你要保证还是要收益？
+      内地保险曾经保证过八到十。
+      结果呢利差损差点倒闭。
+      保证本身就是风险的来源。
+      承诺越高窟窿越大。
+      这是历史教训不是我的观点。
+      是整个行业付出的代价。
+    illustration_keywords:
+      - "infographic title card with bold text 6.5%不是保证的？ and subtitle 保证 vs 收益 你要哪个"
+      - null
+      - null
+      - "two-column comparison, left column highlighted 保证 right column highlighted 收益, center large text 你要哪个"
+      - null
+      - "timeline infographic, left side 1990s label 保证8-10%, arrow pointing right to 利差损 with red warning icon, then arrow to 差点倒闭 with X mark"
+      - null
+      - null
+      - "bar chart showing three bars, bar 1 保证8% red fill labeled 高风险, bar 2 保证5% orange fill labeled 中风险, bar 3 预期6.5% green fill labeled 稳健, title text 承诺越高风险越大"
+      - null
+      - null
+
+  - name: Scene02_Cards
+    narration: |
+      那永明是怎么做的？
+      第一保证现价第十三年回本。
+      这是全市场最快的。
+      第二归原红利永久锁定。
+      一经公布不会回调。
+      这不是写死的保证。
+      但这是最大的诚意。
+      保证等于风险。
+      双保证机制才是真正的安全。
+      你要的是拿到手不是写在纸上。
+    illustration_keywords:
+      - "infographic with title 永明双保证机制 and two large numbered circles 1 and 2 below, both dimmed with dotted outline"
+      - "same roadmap layout with circle 1 highlighted showing calendar icon with 13年 and checkmark labeled 全市场最快回本, circle 2 still dotted"
+      - null
+      - "same roadmap layout with circles 1 and 2 both highlighted, circle 2 showing lock icon with text 一经公布永久锁定 不会回调"
+      - null
+      - "summary infographic with equation style layout, left side crossed out text 写死保证 equals 利差损风险, right side highlighted text 双保证机制 equals 最大诚意, divider line between them"
+      - null
+      - null
+      - null
+      - null
